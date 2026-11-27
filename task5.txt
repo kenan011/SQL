@@ -1,0 +1,29 @@
+layiheler adlı cədvəl yaradın. Sütunları: layihe_id (maksimum 4 rəqəmli tam ədəd, Primary Key), layihe_kodu (sabit 6 simvollu mətn), layihe_adi (maksimum 50 simvollu dəyişən uzunluqlu mətn) və budce (ümumi 8 rəqəm, vergüldən sonra 2 rəqəm).
+
+Yuxarıdakı layiheler cədvəlinə budce dəyəri 123456.789 olan bir sətir əlavə edin (INSERT) və SELECT ilə nəticəyə baxın. Oracle bu ədədi necə yadda saxlayır?
+
+sobeler cədvəlində sobe_adi sütunu CHAR(30) olaraq təyin edilib. 'IT' sözünün faktiki simvol uzunluğunu (LENGTH) və bayt ölçüsünü (VSIZE) yoxlayan sorğu yazın. Niyə 2 yox, 30 çıxır?
+
+isciler cədvəlində heç bir şöbəyə təyin olunmamış (sobe_id-si boş olan) işçilərin adlarını tapın.
+
+Ən azı 1 işçisi olan şöbələrin adlarını EXISTS operatorundan istifadə edərək çıxarın (sobeler və isciler cədvəlləri üzrə).
+
+Heç bir işçisi olmayan şöbənin adını əvvəlcə NOT IN, sonra isə NOT EXISTS ilə tapmağa çalışın. NOT IN niyə nəticə qaytarmır və bunu NOT IN daxilində necə düzəltmək olar?
+
+HR.EMPLOYEES və HR.DEPARTMENTS cədvəllərindən istifadə edərək, tərkibində heç bir işçi çalışmayan departamentlərin adlarını (department_name) NOT EXISTS ilə tapın.
+
+HR.EMPLOYEES cədvəlində tabeliyində işçi olan menecerlərin (yəni employee_id-si başqa bir işçinin manager_id-si olan şəxslərin) ad və soyadlarını EXISTS ilə tapın.
+
+'25/12/2024 14:30:00' mətnini Oracle tarix tipinə (DATE) çevirin və DUAL cədvəlindən istifadə edərək ekrana çıxarın.
+
+'2025-Nov-09 09:15 PM' mətnini TO_DATE funksiyası ilə tarixə çevirin (saat formatında AM/PM nəzərə alınmalıdır).
+
+ANSI DATE literalından (DATE 'YYYY-MM-DD') istifadə edərək HR.EMPLOYEES cədvəlində 2007-01-01 tarixindən sonra işə qəbul olunan və maaşı (salary) 8000-dən çox olan işçilərin adını, soyadını, maaşını və işə qəbul tarixini (hire_date) işə qəbul tarixinə görə azalan sıra ilə (DESC) göstərin.
+
+HR.EMPLOYEES cədvəlində 2005-01-01 və 2005-12-31 tarixləri arasında işə qəbul olunan işçilərin siyahısını BETWEEN və ANSI DATE literalı ilə çıxarın.
+
+HR.EMPLOYEES cədvəlində işçilərin işə qəbul tarixini (hire_date) 'DD.MM.YYYY' formatında mətnə çevirərək (TO_CHAR) göstərin (ilk 10 sətir).
+
+HR.EMPLOYEES cədvəlində işçilərin sınaq müddətinin bitmə tarixini hesablayın (işə qəbul tarixinin üzərinə 3 ay əlavə edin — ADD_MONTHS funksiyasından istifadə edin).
+
+HR.EMPLOYEES cədvəlində yalnız May ayında (ilindən asılı olmayaraq) işə qəbul olunan işçilərin ad, soyad və işə qəbul tarixlərini tapın.

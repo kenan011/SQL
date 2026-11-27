@@ -1,0 +1,112 @@
+SQL: WINDOW FUNKSİYALARI - EV TAPŞIRIĞI
+Mövzu: OVER(), PARTITION BY, AVG / SUM / COUNT / MAX / MIN ilə window,
+       window nəticəsini filtrləmək, GROUP BY ilə müqayisə, ROW_NUMBER, RANK, DENSE_RANK
+
+Bütün tapşırıqlar FreeSQL-də HR cədvəlləri üzərində yazılır.
+Cədvəl adını həmişə HR. ilə yazın, məsələn: HR.EMPLOYEES.
+Hər sorğunu işlədib nəticəsini yoxlayın, sonra hamısını bir .sql faylında
+öz qovluğunuzdakı window qovluğuna yükləyin.
+Hər sorğunun üstündə şərh kimi tapşırığın nömrəsini yazın: -- Task 1
+
+İstifadə olunan cədvəllər:
+HR.EMPLOYEES     işçilər (FIRST_NAME, LAST_NAME, SALARY, JOB_ID, MANAGER_ID, DEPARTMENT_ID)
+HR.DEPARTMENTS   şöbələr (DEPARTMENT_ID, DEPARTMENT_NAME)
+
+Qaydalar:
+- Tapşırıqda "Sütunlar" yazılıbsa, nəticədə məhz bu sütunlar və bu adlar olmalıdır.
+- Window funksiyasının nəticəsinə şərt qoymaq lazımdırsa, sorğunu subquery-yə büküb
+  şərti çöldə yazın.
+- Tapşırıqda hansı funksiya deyilibsə (RANK, DENSE_RANK, ROW_NUMBER), onu işlədin.
+
+
+============================== ASAN ==============================
+
+Task 1.
+Hər işçinin adını və maaşını, yanında isə şirkətdəki ən aşağı maaşı göstərin.
+Daha sonra işçinin maaşının ən aşağı maaşdan neçə DƏFƏ çox olduğunu hesablayın
+(vergüldən sonra 1 rəqəm).
+Sütunlar: FIRST_NAME, SALARY, EN_ASAGI, NECE_DEFE
+Ən çox alan yuxarıda olsun.
+
+
+Task 2.
+Hər işçinin yanında öz VƏZİFƏSİNDƏKİ (JOB_ID) orta maaşı göstərin
+(tam ədədə qədər yuvarlaqlaşdırılmış).
+Sütunlar: FIRST_NAME, JOB_ID, SALARY, VEZIFE_ORTASI
+Nəticə JOB_ID-yə görə sıralansın.
+
+
+Task 3.
+Bütün işçiləri maaşa görə sıralayın: ən çox alan 1-ci olsun.
+Yanaşı iki sütun göstərin: biri RANK ilə, biri DENSE_RANK ilə.
+Sütunlar: FIRST_NAME, SALARY, RANK_YER, DENSE_YER
+Şərhdə yazın: John Russell hər iki sütunda neçənci yerdədir? Rəqəmlər niyə fərqlidir?
+
+
+============================== ORTA ==============================
+
+Task 4.
+Eyni menecerə tabe olan işçilər bir komanda sayılır (eyni MANAGER_ID).
+Hər işçinin yanında onun komandasında neçə nəfər olduğunu və komandanın orta maaşını
+(tam ədədə qədər yuvarlaqlaşdırılmış) göstərin.
+Sonra sorğunu elə dəyişin ki, yalnız komandası 6 nəfərdən ÇOX olan işçilər görünsün.
+Sütunlar: FIRST_NAME, MANAGER_ID, KOMANDA_SAYI, KOMANDA_ORTASI
+Şərhdə yazın: Steven King-in öz sətrində KOMANDA_SAYI neçədir və niyə?
+
+
+Task 5.
+Hər işçinin yanında öz şöbəsindəki ən yüksək maaşı göstərin.
+İşçi öz şöbəsinin ən yüksək maaşını alırsa, STATUS sütununda 'Lider', almırsa '-' yazılsın
+(CASE ilə).
+Sütunlar: FIRST_NAME, DEPARTMENT_ID, SALARY, SOBE_MAX, STATUS
+Şərhdə yazın: neçə işçi 'Lider' oldu?
+
+
+Task 6.
+Hər vəzifədə (JOB_ID) işçiləri maaşa görə DENSE_RANK ilə sıralayın: ən çox alan 1-ci.
+Yalnız SA_REP vəzifəsində ilk 3 yeri tutan işçiləri göstərin.
+Sütunlar: FIRST_NAME, JOB_ID, SALARY, YER
+
+
+Task 7.
+Orta maaşı 10000-dən çox olan vəzifələri (JOB_ID) iki üsulla göstərin:
+a) GROUP BY və HAVING ilə
+b) window funksiyası ilə (PARTITION BY JOB_ID)
+Hər iki nəticədə hər vəzifə yalnız BİR dəfə görünməlidir.
+Sütunlar: JOB_ID, ISCI_SAYI, ORTA_MAAS
+Şərhdə yazın: hansı üsul daha qısadır? b)-də nəyi əlavə etmək lazım oldu?
+
+
+Task 8. Səhvləri tapın
+Aşağıdakı sorğuda 3 səhv var. Məqsəd: hər şöbədə ən çox maaş alan 2 yerin sahiblərini
+göstərmək. Bərabər maaş alanlar eyni yeri bölüşməlidir.
+Səhvləri düzəldin, düzgün sorğunu yazın və şərhlə qeyd edin ki, hər səhv nə idi.
+Diqqət: səhvlərdən biri xəta vermir, sadəcə nəticədən bir işçini əskik edir.
+
+SELECT FIRST_NAME, DEPARTMENT_ID, SALARY,
+       ROW_NUMBER() OVER(PARTITION BY DEPARTMENT_ID) AS YER
+FROM HR.EMPLOYEES
+WHERE YER <= 2;
+
+
+============================== ÇƏTİN ==============================
+
+Task 9.
+Hər şöbədə İKİNCİ ən yüksək maaşı alan işçini (və ya işçiləri) tapın.
+Bərabər maaş alanlar eyni yerdə olmalıdır.
+Sütunlar: FIRST_NAME, DEPARTMENT_ID, SALARY
+Şərhdə yazın:
+- Nəticədə neçə sətir çıxdı?
+- Niyə 10, 40 və 70-ci şöbələr nəticədə yoxdur?
+- ROW_NUMBER ilə yazsaq, 90-cı şöbədə nə dəyişərdi?
+
+
+Task 10.
+Hər şöbənin orta maaşını şirkətin orta maaşı ilə müqayisə edin.
+Nəticədə hər şöbə yalnız BİR dəfə görünsün:
+- SOBE_ORTASI:    şöbənin orta maaşı (tam ədəd)
+- SIRKET_ORTASI:  şirkətin orta maaşı (tam ədəd)
+- VEZIYYET:       şöbənin ortası şirkətin ortasından yüksəkdirsə 'Yuxari', deyilsə 'Asagi' (CASE ilə)
+Sütunlar: DEPARTMENT_ID, SOBE_ORTASI, SIRKET_ORTASI, VEZIYYET
+İpucu: bir sorğuda həm OVER(), həm OVER(PARTITION BY ...) işlədin.
+Şərhdə yazın: neçə şöbə 'Yuxari', neçəsi 'Asagi' oldu?

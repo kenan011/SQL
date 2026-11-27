@@ -1,0 +1,68 @@
+SQL DƏRS 1: EV TAPŞIRIĞI
+
+Bütün tapşırıqlar Oracle-da HR sxemi üzərində yazılır (HR.EMPLOYEES, HR.JOBS və s.).
+Hər sorğunu işlədib nəticəsini yoxlayın, sonra hamısını bir .sql faylında GitHub-a yükləyin.
+Hər sorğunun üstündə şərh kimi tapşırığın nömrəsini yazın: -- Task 1
+
+Cədvəllərdə hansı sütunların olduğunu görmək üçün: SELECT * FROM HR.JOBS;
+
+
+Task 1. Maaş artımı
+Şirkət bütün işçilərin maaşını 10% artırır. HR.EMPLOYEES cədvəlindən işçinin adını,
+soyadını, indiki maaşını və yeni maaşını göstərin. Yeni maaş sütununun adı YENI_MAAS olsun.
+
+
+Task 2. Ofis olan ölkələr
+HR.LOCATIONS cədvəlindən istifadə edərək şirkətin ofisi olan ölkələrin kodlarını göstərin.
+Hər kod yalnız bir dəfə görünməlidir.
+
+
+Task 3. İki şöbə, iki fərqli şərt
+HR.EMPLOYEES cədvəlindən elə işçiləri tapın ki:
+- ya 50-ci şöbədə işləyir və maaşı 3000-dən azdır,
+- ya da 80-ci şöbədə işləyir və maaşı 10000-dən çoxdur.
+Adını, şöbəsini və maaşını göstərin.
+
+
+Task 4. Başlanğıc maaş aralığı
+HR.JOBS cədvəlindən minimum maaşı (MIN_SALARY) 4000 ilə 6000 arasında olan vəzifələrin
+adını və minimum maaşını göstərin.
+
+
+Task 5. Seçilmiş ölkələrdəki ofislər
+HR.LOCATIONS cədvəlindən yalnız ABŞ, Böyük Britaniya və Kanadadakı ofislərin şəhərini
+və ölkə kodunu göstərin. Ölkə kodları: US, UK, CA. Bir neçə OR yazmadan həll edin.
+
+
+Task 6. Ad axtarışı
+HR.EMPLOYEES cədvəlindən adı S hərfi ilə başlayan və tam 5 hərfdən ibarət olan,
+soyadının içində isə a hərfi olan işçilərin adını və soyadını göstərin.
+
+
+Task 7. Rəhbəri olmayan şöbələr
+HR.DEPARTMENTS cədvəlindən rəhbəri (MANAGER_ID) təyin olunmamış şöbələrin adını göstərin.
+
+
+Task 8. Maaş fərqi ən böyük olan vəzifələr
+HR.JOBS cədvəlində hər vəzifə üçün maksimum və minimum maaş arasındakı fərqi hesablayın
+və sütunu MAAS_FERQI adlandırın. Fərqi ən böyük olan 3 vəzifənin adını və fərqini göstərin.
+
+
+Task 9. 80-ci şöbənin hesabatı
+HR.EMPLOYEES cədvəlindən yalnız 80-ci şöbə üçün bir sətirlik hesabat çıxarın:
+- işçilərin sayı
+- komissiya alan işçilərin sayı
+- orta maaş (vergüldən sonra 2 rəqəm)
+- ən yüksək və ən aşağı maaş arasındakı fərq
+Hər sütuna başa düşülən ad verin.
+
+
+Task 10. Səhvləri tapın
+Aşağıdakı sorğuda 3 səhv var. Məqsəd: adı A hərfi ilə başlayan və komissiyası olmayan
+işçiləri tapmaqdır. Səhvləri düzəldin, düzgün sorğunu yazın və şərhlə qeyd edin ki,
+hər səhv nə idi.
+
+SELECT FIRST_NAME AS AD, SALARY
+FROM HR.EMPLOYEES
+WHERE AD LIKE "A%"
+  AND COMMISSION_PCT = NULL;

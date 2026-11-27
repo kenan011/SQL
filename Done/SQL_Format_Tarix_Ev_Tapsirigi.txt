@@ -1,0 +1,133 @@
+SQL: FORMATLAR VƏ TARİXLƏR - EV TAPŞIRIĞI
+Mövzu: || və CONCAT, mətn funksiyaları, TO_CHAR (rəqəm və tarix), TRUNC,
+       MONTHS_BETWEEN, ADD_MONTHS, LAST_DAY, EXTRACT, TO_DATE
+
+Bütün tapşırıqlar FreeSQL-də HR cədvəlləri üzərində yazılır.
+Cədvəl adını həmişə HR. ilə yazın, məsələn: HR.EMPLOYEES.
+Hər sorğunu işlədib nəticəsini yoxlayın, sonra hamısını bir .sql faylında
+öz qovluğunuzdakı format_tarix qovluğuna yükləyin.
+Hər sorğunun üstündə şərh kimi tapşırığın nömrəsini yazın: -- Task 1
+
+İstifadə olunan cədvəl:
+HR.EMPLOYEES     işçilər (HIRE_DATE: işə girmə tarixi, PHONE_NUMBER: telefon)
+Cədvəl lazım olmayan yoxlamalar üçün DUAL istifadə edin.
+
+Qaydalar:
+- Tapşırıqda "Sütunlar" yazılıbsa, nəticədə məhz bu sütunlar və bu adlar olmalıdır.
+- Nümunədə göstərilən formatı dəqiq təkrarlayın: boşluqlar, nöqtələr, böyük-kiçik hərflər.
+- Tarixlərdə artıq boşluq qalmamalıdır.
+- HR-dakı tarixlərin illəri FreeSQL versiyasından asılıdır, ona görə tapşırıqlarda konkret il yoxdur.
+
+
+============================== ASAN ==============================
+
+Task 1.
+HR.EMPLOYEES cədvəlindən hər işçi üçün üç sütun göstərin:
+- TAM_AD:   ad, boşluq və BÖYÜK hərflə soyad          nümunə: Steven KING
+- QISA_AD:  adın ilk hərfi, nöqtə, boşluq və soyad     nümunə: S. King
+- EMAIL:    EMAIL sütunu kiçik hərflə + '@company.com'  nümunə: sking@company.com
+Sütunlar: TAM_AD, QISA_AD, EMAIL
+Nəticə soyada görə sıralansın.
+
+
+Task 2.
+Hər işçinin maaşını və illik maaşını formatlı göstərin:
+- MAAS:        minlik ayırıcı ilə, sonunda ' AZN', önündə boşluq olmadan   nümunə: 24,000 AZN
+- ILLIK_MAAS:  maaş * 12, minlik ayırıcı və 2 onluq rəqəm ilə              nümunə: 288,000.00
+Sütunlar: FIRST_NAME, MAAS, ILLIK_MAAS
+Ən böyük maaş yuxarıda olsun.
+Şərhdə yazın: ORDER BY MAAS DESC yazsaq, nəticə niyə səhv sıralanır?
+
+
+Task 3.
+Hər işçinin işə girmə tarixi haqqında məlumat göstərin:
+- ISE_GIRIS:   DD.MM.YYYY formatında                 nümunə: 17.06.2003
+- IL:          işə girdiyi il, RƏQƏM kimi (EXTRACT ilə)
+- AY_ADI:      ayın tam adı, sonunda boşluq olmadan   nümunə: June
+- HEFTE_GUNU:  həftənin gününün tam adı, boşluqsuz    nümunə: Tuesday
+Sütunlar: FIRST_NAME, ISE_GIRIS, IL, AY_ADI, HEFTE_GUNU
+Ən erkən işə girən yuxarıda olsun.
+
+
+============================== ORTA ==============================
+
+Task 4.
+Hər işçinin bugünkü tarixə görə stajını hesablayın:
+- ISCI:       ad və soyad                                 nümunə: Steven King
+- ISE_GIRIS:  gün, ayın tam adı və il, artıq boşluqsuz     nümunə: 17 June 2003
+- STAJ:       tam il və tam ay, mətn kimi                  nümunə: 22 il 5 ay
+Sütunlar: ISCI, ISE_GIRIS, STAJ
+Stajı ən çox olan yuxarıda olsun.
+Qeyd: staj yuvarlaqlaşdırılmamalıdır. 22 il 11 ay işləyən adamın stajı 23 il deyil.
+İpucu: MONTHS_BETWEEN, TRUNC və MOD.
+
+
+Task 5.
+Şirkətdə sınaq müddəti 3 aydır, maaş isə hər ayın son günü verilir.
+a) Hər işçi üçün göstərin:
+   - SINAQ_BITIR:     işə girmədən 3 ay sonrakı tarix
+   - ILK_MAAS_GUNU:   işə girdiyi ayın son günü
+   - MAASA_QALAN_GUN: işə girdiyi gündən o ayın son gününə qədər neçə gün var
+   Sütunlar: FIRST_NAME, HIRE_DATE, SINAQ_BITIR, ILK_MAAS_GUNU, MAASA_QALAN_GUN
+b) DUAL ilə yoxlayın: TO_DATE ilə '28.02.2025' tarixini yaradın və ona ADD_MONTHS ilə
+   3 ay əlavə edin. Nəticə 28.05.2025 olmayacaq. Nə çıxdı və niyə? Şərhdə yazın.
+
+
+Task 6. Səhvləri tapın
+Aşağıdakı sorğuda 3 səhv var. Məqsəd: MART ayında işə girən işçilər üçün belə mətn göstərmək:
+'Steven King, komissiya: 0.20'. Komissiyası olmayanlarda 0.20 yerinə 'yoxdur' yazılsın.
+Səhvləri düzəldin, düzgün sorğunu yazın və şərhlə qeyd edin ki, hər səhv nə idi.
+Diqqət: səhvlərdən biri xəta vermir, sadəcə nəticəni boş qaytarır.
+Düzəltdikdən sonra komissiya 0.20 kimi görünməlidir, .2 kimi yox.
+
+SELECT CONCAT(FIRST_NAME, ' ', LAST_NAME) || ', komissiya: ' || NVL(COMMISSION_PCT, 'yoxdur') AS MELUMAT
+FROM HR.EMPLOYEES
+WHERE TO_CHAR(HIRE_DATE, 'MM') = '3';
+
+
+Task 7.
+Hər ayda (bütün illər birlikdə) neçə işçinin işə girdiyini göstərin.
+- AY_NO:      ayın nömrəsi     nümunə: 01
+- AY:         ayın tam adı, boşluqsuz     nümunə: January
+- ISCI_SAYI:  o ayda işə girənlərin sayı
+Sütunlar: AY_NO, AY, ISCI_SAYI
+Nəticə təqvim sırası ilə olsun: yanvar, fevral, mart ...
+Şərhdə yazın: ORDER BY AY yazsaq, sıra necə olardı və niyə?
+
+
+Task 8.
+Yeni sistem üçün işçilərə login və telefon hazırlanır:
+- LOGIN:    adın ilk hərfi + soyad, hamısı kiçik hərflə, sonunda isə işçi nömrəsi
+            (EMPLOYEE_ID) 4 rəqəmli, önündə sıfırlarla    nümunə: sking0100
+- TELEFON:  PHONE_NUMBER-dəki nöqtələr tire ilə əvəz olunsun
+Yalnız soyadı 7 və daha çox hərfdən ibarət olan işçilər görünsün.
+Sütunlar: EMPLOYEE_ID, LOGIN, TELEFON
+Nəticə LOGIN-ə görə sıralansın.
+
+
+============================== ÇƏTİN ==============================
+
+Task 9.
+İllər üzrə işə qəbul hesabatı hazırlayın. Hər il üçün:
+- IL:         il (rəqəm)
+- ISCI_SAYI:  o il işə girənlərin sayı
+- ILK_TARIX:  o il ən erkən işə girmə tarixi, DD.MM.YYYY formatında
+- SON_TARIX:  o il ən gec işə girmə tarixi, DD.MM.YYYY formatında
+- ORTA_MAAS:  o il işə girənlərin orta maaşı, minlik ayırıcı və 2 onluq rəqəm ilə   nümunə: 6,461.83
+Sütunlar: IL, ISCI_SAYI, ILK_TARIX, SON_TARIX, ORTA_MAAS
+İllərə görə artan sıralansın.
+Şərhdə yazın: ILK_TARIX üçün MIN(TO_CHAR(HIRE_DATE, 'DD.MM.YYYY')) yazsaq, nəticə niyə səhv olar?
+
+
+Task 10.
+a) Hər işçi üçün göstərin:
+   - ISE_GIRIS:  həftənin günü (qısa) və tarix     nümunə: Tue, 17.06.2003
+   - GUN_NOVU:   işə şənbə və ya bazar günü giribsə 'Hefte sonu', qalanlarında 'Is gunu'
+                 (CASE ilə)
+   Sütunlar: FIRST_NAME, ISE_GIRIS, GUN_NOVU
+b) Həftənin hər günü üzrə neçə işçinin işə girdiyini sayın.
+   GUN tam adla və boşluqsuz olsun (nümunə: Monday).
+   Sütunlar: GUN, ISCI_SAYI
+   Ən çox işçi işə girən gün yuxarıda olsun.
+Şərhdə yazın: a)-da CASE-in içində TO_CHAR(HIRE_DATE, 'DAY') = 'SATURDAY' yazsaq,
+nə baş verər və niyə?

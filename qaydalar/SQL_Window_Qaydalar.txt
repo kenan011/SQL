@@ -1,0 +1,378 @@
+-- ============================================================
+-- SQL: WINDOW FUNKSİYALARI - QAYDALAR VƏ NÜMUNƏLƏR
+-- Mövzular: OVER(), PARTITION BY, AVG / SUM / COUNT / MAX / MIN ilə window,
+--           window nəticəsini filtrləmək, GROUP BY ilə müqayisə,
+--           ROW_NUMBER, RANK, DENSE_RANK
+-- Bütün nümunələr Oracle-da (FreeSQL) yazılıb.
+-- HR cədvəllərinin adını həmişə HR. ilə yazın: HR.EMPLOYEES.
+--
+-- Nümunələrin çoxu iki kiçik şöbə üzərindədir (60 və 90), nəticəni gözlə izləmək asandır:
+-- FIRST_NAME   DEPARTMENT_ID   SALARY
+-- Hunold       60              9000
+-- Ernst        60              6000
+-- Austin       60              4800
+-- Pataballa    60              4800
+-- Lorentz      60              4200
+-- King         90              24000
+-- Kochhar      90              17000
+-- De Haan      90              17000
+-- ============================================================
+
+
+-- ============================================================
+-- 1. WINDOW FUNKSİYASI NƏDİR
+--
+-- Problem: hər işçinin yanında orta maaşı göstərmək istəyirik.
+-- AVG bütün sətirləri BİR sətrə yığır və adlar itir:
+-- ============================================================
+
+-- SƏHV: ORA-00937
+SELECT FIRST_NAME, AVG(SALARY) FROM HR.EMPLOYEES;
+
+-- Window funksiyası hesablayır, amma sətirləri YIĞMIR:
+-- hər sətir yerində qalır, nəticə onun yanına yazılır.
+-- Window funksiyasını OVER sözü tanıdır.
+SELECT FIRST_NAME, AVG(SALARY) OVER() FROM HR.EMPLOYEES;
+-- 107 sətir, hər sətirdə 6461.83
+
+--                  Girən sətir   Çıxan sətir
+-- GROUP BY         107           12 (hər şöbəyə bir)
+-- Window (OVER)    107           107
+
+
+-- ============================================================
+-- 2. OVER(): BÜTÜN SƏTİRLƏR ÜZRƏ
+--
+-- Boş mötərizə "bütün sətirlərə bax" deməkdir.
+-- AVG, SUM, COUNT, MAX, MIN funksiyalarının hamısı OVER() ilə işləyir.
+-- ============================================================
+
+SELECT FIRST_NAME, SALARY,
+       SUM(SALARY) OVER() AS CEM,
+       AVG(SALARY) OVER() AS ORTA,
+       COUNT(*)    OVER() AS SAY,
+       MAX(SALARY) OVER() AS EN_COX,
+       MIN(SALARY) OVER() AS EN_AZ
+FROM HR.EMPLOYEES
+WHERE DEPARTMENT_ID = 60;
+-- 5 sətir, hər sətirdə: CEM 28800, ORTA 5760, SAY 5, EN_COX 9000, EN_AZ 4200
+-- WHERE əvvəl işləyir: OVER() bütün 107 işçini yox, yalnız qalan 5 işçini görür.
+
+-- Nəyə lazımdır: hər sətri ümumi nəticə ilə müqayisə etmək
+SELECT FIRST_NAME,
+       SALARY,
+       AVG(SALARY) OVER() AS ORTALAMA_MAAS,
+       SALARY - AVG(SALARY) OVER() AS FERQ
+FROM HR.EMPLOYEES;
+-- GROUP BY ilə bunu yazmaq olmur: həm işçinin maaşı, həm də ümumi orta eyni sətirdə lazımdır.
+
+
+-- ============================================================
+-- 3. PARTITION BY: QRUPLARA BÖLMƏK, AMMA YIĞMAMAQ
+--
+-- PARTITION BY sətirləri GROUP BY kimi qruplara bölür.
+-- Fərq: sətirlər qalır, hər sətir yalnız ÖZ qrupunun nəticəsini görür.
+-- ============================================================
+
+SELECT FIRST_NAME, DEPARTMENT_ID, SALARY,
+       SUM(SALARY) OVER()                           AS HAMISININ_CEMI,
+       SUM(SALARY) OVER(PARTITION BY DEPARTMENT_ID) AS SOBENIN_CEMI,
+       COUNT(*)    OVER(PARTITION BY DEPARTMENT_ID) AS SOBEDE_SAY
+FROM HR.EMPLOYEES
+WHERE DEPARTMENT_ID IN (60, 90);
+-- FIRST_NAME  DEPT  SALARY  HAMISININ_CEMI  SOBENIN_CEMI  SOBEDE_SAY
+-- Hunold      60    9000    86800           28800         5
+-- Ernst       60    6000    86800           28800         5
+-- Austin      60    4800    86800           28800         5
+-- Pataballa   60    4800    86800           28800         5
+-- Lorentz     60    4200    86800           28800         5
+-- King        90    24000   86800           58000         3
+-- Kochhar     90    17000   86800           58000         3
+-- De Haan     90    17000   86800           58000         3
+
+-- Eyni sual GROUP BY ilə:
+SELECT DEPARTMENT_ID, SUM(SALARY)
+FROM HR.EMPLOYEES
+WHERE DEPARTMENT_ID IN (60, 90)
+GROUP BY DEPARTMENT_ID;
+-- 60 -> 28800, 90 -> 58000
+
+-- Rəqəmlər eynidir. Niyə GROUP BY 2 sətir, PARTITION BY 8 sətir qaytarır?
+-- WHERE-dən sonra 8 işçi qalır: 60-cı şöbədə 5, 90-cı şöbədə 3.
+-- GROUP BY hər şöbəni BİR sətrə yığır: 2 şöbə -> 2 sətir.
+-- PARTITION BY heç nəyi yığmır: 8 işçi -> 8 sətir, şöbənin cəmi hər işçinin yanına yazılır.
+-- Qısaca: GROUP BY şöbə qədər, PARTITION BY işçi qədər sətir qaytarır.
+
+
+-- ============================================================
+-- 4. WINDOW NƏTİCƏSİNİ FİLTRLƏMƏK
+--
+-- Window funksiyasını WHERE-də yazmaq OLMAZ, aliasını da olmaz.
+-- Səbəb icra sırasıdır: WHERE window funksiyasından ƏVVƏL işləyir.
+-- WHERE işləyəndə window nəticəsi hələ hesablanmayıb.
+-- Həlli: sorğunu subquery-yə bükmək və şərti ÇÖLDƏ yazmaq.
+-- ============================================================
+
+-- SƏHV: ORA-30483 (window functions are not allowed here)
+-- WHERE COUNT(*) OVER(PARTITION BY DEPARTMENT_ID) > 10
+
+-- SƏHV: ORA-00904 (alias hələ yoxdur)
+-- SELECT ..., COUNT(*) OVER(PARTITION BY DEPARTMENT_ID) AS CEMI FROM HR.EMPLOYEES WHERE CEMI > 10
+
+-- DÜZGÜN: içəridə hesabla, çöldə filtrlə
+SELECT * FROM (
+    SELECT FIRST_NAME,
+           DEPARTMENT_ID,
+           COUNT(*)    OVER(PARTITION BY DEPARTMENT_ID) AS CEMI,
+           AVG(SALARY) OVER(PARTITION BY DEPARTMENT_ID) AS ORTALAMA_MAAS
+    FROM HR.EMPLOYEES)
+WHERE CEMI > 10;
+-- 79 sətir: 50 və 80-ci şöbələrin bütün işçiləri (45 + 34)
+
+-- Eyni səbəbdən window funksiyasını HAVING-də də yazmaq olmur (ORA-30483).
+-- ORDER BY-da isə olar, çünki ORDER BY window funksiyasından SONRA işləyir.
+
+
+-- ============================================================
+-- 5. GROUP BY YOXSA WINDOW?
+-- ============================================================
+
+-- Sual: işçi sayı 10-dan çox olan şöbələrin işçi sayı və orta maaşı.
+
+-- GROUP BY ilə: qısa və aydın, 2 sətir
+SELECT DEPARTMENT_ID, COUNT(EMPLOYEE_ID), AVG(SALARY)
+FROM HR.EMPLOYEES
+GROUP BY DEPARTMENT_ID
+HAVING COUNT(EMPLOYEE_ID) > 10;
+-- 50 -> 45, 3475.56
+-- 80 -> 34, 8955.88
+
+-- Window ilə: 4-cü bölmədəki sorğu 79 sətir qaytarır (hər işçi ayrıca).
+-- Hər şöbəni bir dəfə görmək üçün DISTINCT əlavə etmək lazımdır:
+SELECT * FROM (
+    SELECT DISTINCT DEPARTMENT_ID,
+           COUNT(*)    OVER(PARTITION BY DEPARTMENT_ID) AS CEMI,
+           AVG(SALARY) OVER(PARTITION BY DEPARTMENT_ID) AS ORTALAMA_MAAS
+    FROM HR.EMPLOYEES)
+WHERE CEMI > 10;
+-- 2 sətir, amma sorğu daha uzundur
+
+-- GROUP BY daha yaxşıdır:
+-- - nəticədə hər qrup üçün BİR sətir lazımdırsa (hesabat, xülasə)
+-- - qrupa şərt qoymaq lazımdırsa (HAVING birbaşa işləyir)
+-- - cədvəl böyükdürsə (GROUP BY az sətir qaytarır)
+-- - MAX(COUNT(*)) kimi iç-içə aggregate lazımdırsa
+--
+-- Window daha yaxşıdır:
+-- - sətir və onun qrupunun nəticəsi YAN-YANA lazımdırsa (maaş və şöbə ortası)
+-- - sıralama lazımdırsa (RANK, DENSE_RANK, ROW_NUMBER)
+-- - hər qrupdan ilk N nəfər lazımdırsa
+--
+-- Qayda: qrup qədər sətir lazımdır -> GROUP BY. Sətir qədər sətir lazımdır -> window.
+
+
+-- ============================================================
+-- 6. WINDOW FUNKSİYALARININ NÖVLƏRİ
+--
+-- OVER(...) ilə yazılan hər funksiya window funksiyasıdır.
+--
+-- Növ                      Funksiyalar                     OVER-siz işləyirmi?
+-- Aggregate funksiyalar    SUM, AVG, COUNT, MAX, MIN       Bəli (GROUP BY ilə adi aggregate olur)
+-- Sıralama funksiyaları    ROW_NUMBER, RANK, DENSE_RANK    Xeyr, həmişə OVER ilə yazılır
+--
+-- Sıralama funksiyalarında OVER-in içində ORDER BY MÜTLƏQDİR:
+-- yer vermək üçün sıra lazımdır.
+-- RANK() OVER()                       -> ORA-30485 (ORDER BY yoxdur)
+-- RANK() OVER(ORDER BY SALARY DESC)   -> düzgün
+-- ============================================================
+
+
+-- ============================================================
+-- 7. ROW_NUMBER: SADƏCƏ SIRA NÖMRƏSİ
+--
+-- Hər sətrə ardıcıl nömrə verir: 1, 2, 3, ... Bərabərliyə baxmır.
+-- ============================================================
+
+SELECT FIRST_NAME, SALARY,
+       ROW_NUMBER() OVER(ORDER BY SALARY DESC) AS SIRA
+FROM HR.EMPLOYEES
+WHERE DEPARTMENT_ID IN (60, 90);
+-- King 1, Kochhar 2, De Haan 3, Hunold 4, Ernst 5, Austin 6, Pataballa 7, Lorentz 8
+-- Kochhar ilə De Haan eyni maaşı alır, amma fərqli nömrə alırlar.
+-- Hansının 2, hansının 3 olacağını Oracle TƏSADÜFİ seçir.
+
+
+-- ============================================================
+-- 8. RANK: OLİMPİYA SİSTEMİ
+--
+-- Bərabər olanlara EYNİ yer verir, sonra yer ATLAYIR.
+-- İki idmançı gümüşü bölüşəndə bürünc verilmir, növbəti idmançı 4-cü olur.
+-- ============================================================
+
+SELECT FIRST_NAME, SALARY,
+       RANK() OVER(ORDER BY SALARY DESC) AS YER
+FROM HR.EMPLOYEES
+WHERE DEPARTMENT_ID IN (60, 90);
+-- King 1, Kochhar 2, De Haan 2, Hunold 4 (3 atlandı), Ernst 5,
+-- Austin 6, Pataballa 6, Lorentz 8 (7 atlandı)
+
+
+-- ============================================================
+-- 9. DENSE_RANK: YER ATLAMADAN
+--
+-- Bərabər olanlara EYNİ yer verir, amma ATLAMIR.
+-- Fərqli dəyərləri sayır.
+-- ============================================================
+
+SELECT FIRST_NAME, SALARY,
+       DENSE_RANK() OVER(ORDER BY SALARY DESC) AS YER
+FROM HR.EMPLOYEES
+WHERE DEPARTMENT_ID IN (60, 90);
+-- King 1, Kochhar 2, De Haan 2, Hunold 3, Ernst 4, Austin 5, Pataballa 5, Lorentz 6
+
+
+-- ============================================================
+-- 10. ÜÇÜ YAN-YANA
+--
+-- FIRST_NAME  SALARY  ROW_NUMBER  RANK  DENSE_RANK
+-- King        24000   1           1     1
+-- Kochhar     17000   2           2     2
+-- De Haan     17000   3           2     2
+-- Hunold      9000    4           4     3
+-- Ernst       6000    5           5     4
+-- Austin      4800    6           6     5
+-- Pataballa   4800    7           6     5
+-- Lorentz     4200    8           8     6
+--
+--              Bərabər dəyərlər     Sonrakı yer   Ən böyük nömrə
+-- ROW_NUMBER   fərqli nömrə         ardıcıl       sətir sayı (8)
+-- RANK         eyni yer             atlayır       sətir sayı (8)
+-- DENSE_RANK   eyni yer             atlamır       fərqli dəyər sayı (6)
+--
+-- Bərabərlik olmasaydı, üçü də eyni nəticəni verərdi.
+--
+-- İstiqamət:
+-- ORDER BY SALARY DESC  -> ən çox alan 1-ci
+-- ORDER BY SALARY ASC   -> ən az alan 1-ci
+-- ============================================================
+
+
+-- ============================================================
+-- 11. PARTITION BY + ORDER BY: HƏR QRUPDA AYRICA SIRALAMA
+--
+-- PARTITION BY  -> qruplara böl
+-- ORDER BY      -> qrupun içində sırala
+-- Hər qrupda sıralama yenidən 1-dən başlayır.
+-- ============================================================
+
+SELECT FIRST_NAME, DEPARTMENT_ID, SALARY,
+       RANK() OVER(PARTITION BY DEPARTMENT_ID ORDER BY SALARY DESC) AS SOBEDE_YER
+FROM HR.EMPLOYEES
+WHERE DEPARTMENT_ID IN (60, 90);
+-- 60: Hunold 1, Ernst 2, Austin 3, Pataballa 3, Lorentz 5
+-- 90: King 1, Kochhar 2, De Haan 2
+
+
+-- ============================================================
+-- 12. TOP-N VƏ N-Cİ DƏYƏR
+-- ============================================================
+
+-- 12.1 Hər şöbədə ən yüksək maaş alan (sıralama içəridə, filtr çöldə)
+SELECT * FROM (
+    SELECT FIRST_NAME, DEPARTMENT_ID, SALARY,
+           RANK() OVER(PARTITION BY DEPARTMENT_ID ORDER BY SALARY DESC) AS YER
+    FROM HR.EMPLOYEES)
+WHERE YER = 1;
+-- 12 sətir (şöbəsi NULL olan Kimberely Grant da ayrıca qrupdur)
+
+-- 12.2 Hər şöbədən 2 nəfər: WHERE YER <= 2
+-- RANK ilə 90-cı şöbədən 3 nəfər çıxır (King, Kochhar, De Haan), çünki 2-ci yerdə bərabərlik var.
+-- ROW_NUMBER ilə düz 2 nəfər çıxır, bərabərlərdən biri təsadüfi düşür.
+
+-- 12.3 N-ci ən aşağı (və ya ən yüksək) maaş: DENSE_RANK
+SELECT * FROM (
+    SELECT FIRST_NAME, SALARY,
+           DENSE_RANK() OVER(ORDER BY SALARY ASC) AS SIRA
+    FROM HR.EMPLOYEES)
+WHERE SIRA = 55;
+-- 55-ci ən aşağı (fərqli) maaşı alan işçilər
+
+-- Niyə DENSE_RANK? Şirkətdə ən yüksək maaşlar: 24000 (King), 17000 (Kochhar, De Haan), 14000 (Russell).
+-- 3-cü ən yüksək maaş 14000-dir.
+-- DENSE_RANK = 3  -> Russell                      (düzgün)
+-- RANK = 3        -> 0 sətir, 3-cü yer atlanıb     (Russell RANK-da 4-cüdür)
+-- ROW_NUMBER = 3  -> Kochhar və ya De Haan         (səhv)
+
+-- Hansını nə vaxt işlətmək:
+-- ROW_NUMBER   düz N sətir lazımdır, hər qrupdan yalnız 1 nəfər, nömrələmə
+-- RANK         yarış, reytinq: bərabərlər yeri bölüşür, yerlər atlanır
+-- DENSE_RANK   "N-ci ən yüksək / ən aşağı dəyər" sualı
+
+-- 12.4 Şərti içəridə və çöldə yazmaq FƏRQLİDİR
+-- İçəridəki WHERE sıralamadan ƏVVƏL, çöldəki WHERE sıralamadan SONRA işləyir.
+
+-- A) Şərt içəridə: King sıralamadan əvvəl çıxarılır, Kochhar 1-ci olur
+SELECT FIRST_NAME, SALARY,
+       RANK() OVER(ORDER BY SALARY DESC) AS YER
+FROM HR.EMPLOYEES
+WHERE DEPARTMENT_ID IN (60, 90) AND SALARY < 20000;
+-- Kochhar 1, De Haan 1, Hunold 3, ...
+
+-- B) Şərt çöldə: əvvəl hamı sıralanır, King sonra gizlədilir, Kochhar 2-ci qalır
+SELECT * FROM (
+    SELECT FIRST_NAME, SALARY,
+           RANK() OVER(ORDER BY SALARY DESC) AS YER
+    FROM HR.EMPLOYEES
+    WHERE DEPARTMENT_ID IN (60, 90))
+WHERE SALARY < 20000;
+-- Kochhar 2, De Haan 2, Hunold 4, ...
+
+-- Yarışa KİM qatılsın -> şərt içəridə. Yarışdan sonra KİMİ göstərək -> şərt çöldə.
+
+
+-- ============================================================
+-- 13. İCRA SIRASI
+--
+-- FROM -> WHERE -> GROUP BY -> HAVING -> window funksiyaları -> SELECT -> ORDER BY -> FETCH
+--
+-- - Window funksiyası WHERE-dən sonra işləyir: WHERE-də işlətmək olmur.
+-- - Window funksiyası GROUP BY-dan sonra işləyir: HAVING-də işlətmək olmur.
+-- - ORDER BY window-dan sonra gəlir: ORDER BY-da window aliası işləyir.
+-- ============================================================
+
+
+-- ============================================================
+-- 14. SƏHVLƏR CƏDVƏLİ
+--
+-- Səhv                                                  Nəticə
+-- SELECT FIRST_NAME, AVG(SALARY) (OVER-siz)             ORA-00937
+-- RANK() OVER() (ORDER BY yoxdur)                       ORA-30485
+-- ROW_NUMBER() / RANK() OVER-siz                        xəta
+-- Window funksiyası WHERE və ya HAVING-də                ORA-30483
+-- Window aliası eyni səviyyədə WHERE-də                  ORA-00904, subquery-yə bükün
+-- PARTITION BY unudulub                                 xəta yoxdur, hesablama bütün cədvəl üzrə gedir
+-- Window ilə hesabat, DISTINCT yoxdur                    xəta yoxdur, hər qrup dəfələrlə təkrarlanır
+-- "N-ci ən yüksək" üçün RANK                            yer atlanıbsa 0 sətir
+-- "N-ci ən yüksək" üçün ROW_NUMBER                      bərabərlik olanda səhv nəfər
+-- Bərabərlik olanda ROW_NUMBER ilə "ilk 1 nəfər"         bərabərlərdən biri təsadüfi düşür
+-- Şərti içəridə yazmaq lazım ikən çöldə (və ya əksinə)   xəta yoxdur, yerlər fərqli çıxır
+-- ============================================================
+
+
+-- ============================================================
+-- 15. YADDA SAXLAYIN
+--
+-- - Window funksiyasını OVER tanıdır. OVER sətirləri yığmır.
+-- - OVER(): bütün sətirlər üzrə. OVER(PARTITION BY x): hər x qrupu üzrə.
+-- - GROUP BY qrup qədər, PARTITION BY sətir qədər sətir qaytarır.
+-- - WHERE window-dan əvvəl işləyir: window nəticəsini subquery-yə büküb çöldə filtrləyin.
+-- - Hesabat və qrupa şərt üçün GROUP BY + HAVING daha rahatdır.
+-- - ROW_NUMBER, RANK, DENSE_RANK-da OVER-in içində ORDER BY mütləqdir.
+-- - ROW_NUMBER: 1, 2, 3 (bərabərlərə də fərqli nömrə).
+-- - RANK: 1, 2, 2, 4 (atlayır).
+-- - DENSE_RANK: 1, 2, 2, 3 (atlamır).
+-- - "N-ci ən yüksək dəyər" -> DENSE_RANK.
+-- - DESC: ən böyük 1-ci. ASC: ən kiçik 1-ci.
+-- - PARTITION BY ilə sıralama hər qrupda yenidən 1-dən başlayır.
+-- - Şərt içəridə: sıralamadan əvvəl. Şərt çöldə: sıralamadan sonra.
+-- ============================================================

@@ -1,0 +1,100 @@
+SQL DƏRS 4: EV TAPŞIRIĞI
+Mövzu: SELF JOIN, IN ilə subquery
+
+Bütün tapşırıqlar FreeSQL-də HR cədvəlləri üzərində yazılır.
+Cədvəl adını həmişə HR. ilə yazın, məsələn: HR.EMPLOYEES.
+Hər sorğunu işlədib nəticəsini yoxlayın, sonra hamısını bir .sql faylında
+öz qovluğunuzdakı ders_04 qovluğuna yükləyin.
+Hər sorğunun üstündə şərh kimi tapşırığın nömrəsini yazın: -- Task 1
+
+İstifadə olunan cədvəllər:
+HR.EMPLOYEES     işçilər
+HR.DEPARTMENTS   şöbələr
+HR.JOBS          vəzifələr
+
+HR.EMPLOYEES-də MANAGER_ID sütunu işçinin menecerinin EMPLOYEE_ID-sini saxlayır.
+Menecer də HR.EMPLOYEES cədvəlində olan bir işçidir. Ona görə işçi ilə menecerini
+birləşdirmək üçün HR.EMPLOYEES cədvəli öz-özü ilə birləşdirilir (SELF JOIN).
+
+Tapşırıqda "Sütunlar" yazılıbsa, nəticədə məhz bu sütunlar və bu adlar olmalıdır.
+
+
+============================== ASAN ==============================
+
+Task 1.
+HR.EMPLOYEES cədvəlini öz-özü ilə birləşdirin.
+Hər işçinin adını və soyadını, yanında isə menecerinin adını və soyadını göstərin.
+Yalnız meneceri olan işçilər görünsün.
+Sütunlar: FIRST_NAME, LAST_NAME, MENECER_ADI, MENECER_SOYADI
+
+
+Task 2.
+Task 1-dəki sorğunu elə dəyişin ki, meneceri olmayan işçi də nəticədə görünsün.
+Sütunlar: FIRST_NAME, LAST_NAME, MENECER_ADI, MENECER_SOYADI
+Şərhdə yazın: Task 1-də neçə sətir, Task 2-də neçə sətir çıxdı və niyə fərqlidir?
+
+
+Task 3.
+HR.DEPARTMENTS cədvəlində LOCATION_ID-si 1700 olan şöbələr var (Seattle ofisi).
+Bu şöbələrdə işləyən işçilərin adını, soyadını və DEPARTMENT_ID-sini göstərin.
+Şöbə nömrələrini əl ilə yazmayın, IN ilə subquery istifadə edin.
+Sütunlar: FIRST_NAME, LAST_NAME, DEPARTMENT_ID
+
+
+============================== ORTA ==============================
+
+Task 4.
+Steven King-ə birbaşa tabe olan işçilərin adını və soyadını göstərin.
+SELF JOIN ilə yazın və menecerin EMPLOYEE_ID-sini yox, adını və soyadını şərtdə işlədin.
+Diqqət: HR.EMPLOYEES-də adı Steven olan iki işçi var.
+Sütunlar: FIRST_NAME, LAST_NAME
+
+
+Task 5.
+Menecerindən çox maaş alan işçiləri tapın.
+Sütunlar: FIRST_NAME, LAST_NAME, SALARY, MENECER_ADI, MENECER_MAASI
+
+
+Task 6.
+Menecerindən FƏRQLİ şöbədə işləyən işçiləri tapın.
+Sütunlar: FIRST_NAME, LAST_NAME, DEPARTMENT_ID, MENECER_ADI, MENECER_SOBESI
+(MENECER_SOBESI menecerin DEPARTMENT_ID-sidir.)
+
+
+Task 7.
+HR.JOBS cədvəlində hər vəzifənin minimum maaşı (MIN_SALARY) yazılıb.
+Minimum maaşı 10000 və daha çox olan vəzifələrdə işləyən işçiləri göstərin.
+IN ilə subquery istifadə edin.
+Sütunlar: FIRST_NAME, LAST_NAME, JOB_ID, SALARY
+
+
+Task 8. Səhvləri tapın
+Aşağıdakı sorğuda 3 səhv var. Məqsəd: Sales və IT şöbələrində işləyən işçilərin
+adını və soyadını göstərməkdir.
+Səhvləri düzəldin, düzgün sorğunu yazın və şərhlə qeyd edin ki, hər səhv nə idi.
+Diqqət: səhvlərdən biri xəta vermir, sadəcə nəticəni əskik edir.
+
+SELECT FIRST_NAME, LAST_NAME
+FROM HR.EMPLOYEES
+WHERE DEPARTMENT_ID = (SELECT DEPARTMENT_ID, DEPARTMENT_NAME
+                       FROM HR.DEPARTMENTS
+                       WHERE DEPARTMENT_NAME IN ('sales', 'IT'));
+
+
+============================== ÇƏTİN ==============================
+
+Task 9.
+Ən azı bir işçiyə rəhbərlik edən işçiləri (yəni menecerləri) İKİ üsulla tapın:
+a) IN ilə subquery
+b) SELF JOIN
+Sütunlar: EMPLOYEE_ID, FIRST_NAME, LAST_NAME
+İki nəticədəki sətir sayı eyni olmalıdır.
+Şərhdə yazın: SELF JOIN versiyasında ilk dəfə nə problem çıxdı və onu necə həll etdiniz?
+
+
+Task 10.
+Hər menecer üçün onun adını, soyadını, tabe işçilərinin sayını və
+tabe işçilərinin orta maaşını göstərin. Orta maaşı tam ədədə qədər yuvarlaqlaşdırın.
+Yalnız 5-dən çox tabesi olan menecerlər görünsün.
+Sütunlar: MENECER_ADI, MENECER_SOYADI, TABE_SAYI, TABELERIN_ORTA_MAASI
+Ən çox tabesi olan menecer yuxarıda olsun.

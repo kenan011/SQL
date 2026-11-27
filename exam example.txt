@@ -1,0 +1,127 @@
+SQL Suallar
+Bütün sorğular FreeSQL-də HR cədvəlləri üzərində yazılır. Cədvəl adını həmişə HR. ilə yazın, məsələn HR.EMPLOYEES.
+Sual 4
+Maaşı 15000-dən çox olan işçiləri menecerinin adı ilə birlikdə göstərin.
+•MENECER: menecerin adı. Meneceri olmayan işçi də nəticədə görünsün, onun üçün 'Menecer yoxdur' yazılsın.
+•FERQ: menecerin maaşı ilə işçinin maaşı arasındakı fərq. Meneceri yoxdursa 0.
+Sütunlar: FIRST_NAME, SALARY, MENECER, FERQ
+Sual 5Hər sorğunun üstündə şərh kimi sualın nömrəsini yazın, məsələn: -- Sual 1
+Sual 1
+Adı 'A' hərfi ilə başlayan və 60, 80 və ya 100-cü şöbələrdə işləyən işçiləri göstərin.
+•QISA_AD: adın ilk hərfi, nöqtə, boşluq və soyad. Nümunə: A. Hunold
+•SOYAD_UZUNLUGU: soyadın neçə hərfdən ibarət olduğu
+Nəticə soyada görə sıralansın.
+Sütunlar: QISA_AD, DEPARTMENT_ID, SOYAD_UZUNLUGU
+Sual 2
+Hər işçi üçün göstərin:
+•MENECER_NO: işçinin MANAGER_ID-si. Meneceri yoxdursa 0 yazılsın.
+•KOMISSIYA_VEZIYYETI: komissiya yoxdursa 'Yoxdur', 0.3 və daha çoxdursa 'Yuksek', qalanlarında 'Var'.
+Sütunlar: FIRST_NAME, MENECER_NO, COMMISSION_PCT, KOMISSIYA_VEZIYYETI
+Sual 3
+Hər şəhər üzrə neçə işçinin işlədiyini göstərin. Bunun üçün üç cədvəl lazımdır: HR.EMPLOYEES, HR.DEPARTMENTS və HR.LOCATIONS (şəhərin adı CITY sütunundadır).
+Yalnız 3-dən çox işçisi olan şəhərlər görünsün. Ən çox işçisi olan şəhər yuxarıda olsun.
+Sütunlar: CITY, ISCI_SAYI
+
+80-ci şöbədə işləyən və heç kimə rəhbərlik etməyən işçiləri tapın (yəni heç bir işçinin MANAGER_ID-si onun EMPLOYEE_ID-sinə bərabər deyil).
+a) NOT EXISTS ilə yazın.
+b) NOT IN ilə yazın. İçəridə SELECT MANAGER_ID FROM HR.EMPLOYEES işlədin.
+Şərhdə yazın: b) niyə fərqli nəticə verdi və onu necə düzəltmək olar?
+Sütunlar: EMPLOYEE_ID, FIRST_NAME
+Sual 6
+1 yanvar 2005-dən əvvəl işə girən işçiləri göstərin. Tarix şərtini TO_DATE ilə yazın.
+•ISE_GIRIS: gün, ayın tam adı və il, artıq boşluq olmadan. Nümunə: 17 June 2003
+•IL: işə girdiyi il, rəqəm kimi
+•AY_SAYI: işə girdiyi gündən bu günə qədər neçə tam ay keçib
+Ən erkən işə girən yuxarıda olsun.
+Sütunlar: FIRST_NAME, ISE_GIRIS, IL, AY_SAYI
+Sual 7
+Hər vəzifədə (JOB_ID) ən az maaş alan işçini tapın. Bir vəzifədə ən az maaşı bir neçə nəfər alırsa, hamısı görünsün.
+Yanında vəzifənin orta maaşını göstərin (tam ədədə qədər yuvarlaqlaşdırılmış).
+Sütunlar: JOB_ID, FIRST_NAME, SALARY, VEZIFE_ORTASI
+
+
+Cavablar
+Sual 1
+SELECT SUBSTR(FIRST_NAME, 1, 1) || '. ' || LAST_NAME AS QISA_AD,
+       DEPARTMENT_ID,
+       LENGTH(LAST_NAME) AS SOYAD_UZUNLUGU
+FROM HR.EMPLOYEES
+WHERE FIRST_NAME LIKE 'A%'
+  AND DEPARTMENT_ID IN (60, 80, 100)
+ORDER BY LAST_NAME;
+Nəticə: 5 sətir: A. Banda, A. Errazuriz, A. Hunold, A. Hutton, A. McEwen.
+Sual 2
+SELECT FIRST_NAME,
+       NVL(MANAGER_ID, 0) AS MENECER_NO,
+       COMMISSION_PCT,
+       CASE
+           WHEN COMMISSION_PCT IS NULL THEN 'Yoxdur'
+           WHEN COMMISSION_PCT >= 0.3  THEN 'Yuksek'
+           ELSE 'Var'
+       END AS KOMISSIYA_VEZIYYETI
+FROM HR.EMPLOYEES;
+Nəticə: 107 sətir: 72 işçidə 'Yoxdur', 11 işçidə 'Yuksek', 24 işçidə 'Var'. Steven King üçün MENECER_NO = 0.
+Sual 3
+SELECT L.CITY,
+       COUNT(*) AS ISCI_SAYI
+FROM HR.EMPLOYEES E
+JOIN HR.DEPARTMENTS D ON E.DEPARTMENT_ID = D.DEPARTMENT_ID
+JOIN HR.LOCATIONS   L ON D.LOCATION_ID   = L.LOCATION_ID
+GROUP BY L.CITY
+HAVING COUNT(*) > 3
+ORDER BY ISCI_SAYI DESC;
+Nəticə: 4 sətir: South San Francisco 45, Oxford 34, Seattle 18, Southlake 5.
+Sual 4
+SELECT E.FIRST_NAME,
+       E.SALARY,
+       NVL(M.FIRST_NAME, 'Menecer yoxdur') AS MENECER,
+       NVL(M.SALARY - E.SALARY, 0)         AS FERQ
+FROM HR.EMPLOYEES E
+LEFT JOIN HR.EMPLOYEES M ON E.MANAGER_ID = M.EMPLOYEE_ID
+WHERE E.SALARY > 15000;
+Nəticə: 3 sətir: Steven 24000 'Menecer yoxdur' 0, Neena 17000 Steven 7000, Lex 17000 Steven 7000. INNER JOIN yazılsa, meneceri olmayan Steven King nəticədən düşər.
+Sual 5
+a) NOT EXISTS
+SELECT E.EMPLOYEE_ID,
+       E.FIRST_NAME
+FROM HR.EMPLOYEES E
+WHERE E.DEPARTMENT_ID = 80
+  AND NOT EXISTS (SELECT 1
+                  FROM HR.EMPLOYEES T
+                  WHERE T.MANAGER_ID = E.EMPLOYEE_ID);
+b) NOT IN
+SELECT EMPLOYEE_ID,
+       FIRST_NAME
+FROM HR.EMPLOYEES
+WHERE DEPARTMENT_ID = 80
+  AND EMPLOYEE_ID NOT IN (SELECT MANAGER_ID
+                          FROM HR.EMPLOYEES);
+Düzəldilmiş NOT IN
+SELECT EMPLOYEE_ID,
+       FIRST_NAME
+FROM HR.EMPLOYEES
+WHERE DEPARTMENT_ID = 80
+  AND EMPLOYEE_ID NOT IN (SELECT MANAGER_ID
+                          FROM HR.EMPLOYEES
+                          WHERE MANAGER_ID IS NOT NULL);
+Nəticə: a) və düzəldilmiş sorğu 29 sətir qaytarır, b) isə 0 sətir.
+İzah: Steven King-in MANAGER_ID-si NULL-dur, ona görə içəridəki siyahıda NULL var. NOT IN hər dəyəri siyahının bütün elementləri ilə müqayisə edir, NULL ilə müqayisə isə UNKNOWN verir. Nəticədə heç bir sətir keçmir. NOT EXISTS isə NULL-dan təsirlənmir.
+Sual 6
+SELECT FIRST_NAME,
+       TO_CHAR(HIRE_DATE, 'FMDD Month YYYY')     AS ISE_GIRIS,
+       EXTRACT(YEAR FROM HIRE_DATE)              AS IL,
+       TRUNC(MONTHS_BETWEEN(SYSDATE, HIRE_DATE)) AS AY_SAYI
+FROM HR.EMPLOYEES
+WHERE HIRE_DATE < TO_DATE('01.01.2005', 'DD.MM.YYYY')
+ORDER BY HIRE_DATE;
+Qeyd: FM yazılmasa, ayın adından sonra artıq boşluqlar qalır. Sıralama ISE_GIRIS-ə görə yox, HIRE_DATE-in özünə görə aparılmalıdır, çünki ISE_GIRIS mətndir.
+Sual 7
+SELECT JOB_ID, FIRST_NAME, SALARY, VEZIFE_ORTASI
+FROM (SELECT JOB_ID,
+             FIRST_NAME,
+             SALARY,
+             ROUND(AVG(SALARY) OVER (PARTITION BY JOB_ID))         AS VEZIFE_ORTASI,
+             RANK() OVER (PARTITION BY JOB_ID ORDER BY SALARY ASC) AS YER
+      FROM HR.EMPLOYEES)
+WHERE YER = 1;
+Nəticə: 21 sətir. Vəzifə 19-dur, amma AD_VP (Neena və Lex) və SH_CLERK (Martha Sullivan və Randall Perkins) vəzifələrində ən az maaşı iki nəfər alır. ROW_NUMBER yazılsa, 19 sətir çıxar və bərabərlərdən biri düşər.

@@ -1,0 +1,89 @@
+============================== ASAN ==============================
+
+Task 1.
+HR.EMPLOYEES cədvəlindən hər işçi üçün aşağıdakı sütunları göstərin:
+- KOD_AD:        adın ilk 2 hərfi (böyük hərflə) + '-' + soyadın ilk 3 hərfi (kiçik hərflə)   nümunə: ST-kin
+- TELEFON_TEMIZ: PHONE_NUMBER sütunundakı bütün nöqtələr silinmiş formada                  nümunə: 5151234567
+- AD_UZUNLUQ:    ad və soyadın birlikdə simvol sayı (aradakı boşluq sayılmadan)              nümunə: 10
+Sütunlar: FIRST_NAME, KOD_AD, TELEFON_TEMIZ, AD_UZUNLUQ
+Nəticə AD_UZUNLUQ sütununa görə azalan sıra ilə düzülsün.
+
+Task 2.
+Hər işçinin komissiya faizini və komissiya məbləğini formatlı şəkildə göstərin:
+- KOMISSIYA_FAIZ: komissiya əmsalını faiz kimi göstərin (məsələn 0.2 -> 20%), 
+                  komissiyası olmayanlarda isə 'Teyin edilmeyib' yazılsın.
+- BONUS_MEBLEG:   SALARY * COMMISSION_PCT hasilini dollar işarəsi, minlik ayırıcı və 2 onluq 
+                  rəqəm ilə göstərin (nümunə: $2,400.00). Olmayanlarda $0.00 görünsün.
+Sütunlar: FIRST_NAME, SALARY, KOMISSIYA_FAIZ, BONUS_MEBLEG
+Yalnız maaşı 5000-dən böyük olan işçilər çıxsın və maaşa görə azalan sıralansın.
+
+Task 3.
+CONCAT funksiyasından istifadə edərək (birləşdirmə operatoru || istifadə ETMƏDƏN) hər işçi üçün göstərin:
+- ISCI_KARTI:  Steven King [AD_PRES] formatında olsun.
+- GIRIS_RUBU:  işə girdiyi rüb (1, 2, 3 və ya 4)
+- ILIN_GUNU:   işə girdiyi tarixin həmin ilin neçənci günü olduğu
+Sütunlar: ISCI_KARTI, GIRIS_RUBU, ILIN_GUNU
+Şərhdə yazın: 6 fərqli elementi birləşdirmək üçün neçə ədəd CONCAT funksiyası iç-içə yazılmalıdır?
+
+============================== ORTA ==============================
+
+Task 4.
+Şirkətdə hər işçinin ilk iş günündən sonrakı ilk bazar ertəsi (Monday) ona təlim keçirilir. Göstərin:
+- ISE_GIRIS:     17-Jun-2003 formatında (ayın qısa adı ilk hərfi böyük)
+- TELIM_TARIXI:  işə girdiyi tarixdən sonra gələn ilk bazar ertəsi (DD.MM.YYYY formatında)
+- GOZLEME_GUNU:  işə girdiyi gündən təlim gününə qədər neçə gün keçdiyini göstərən rəqəm
+Sütunlar: FIRST_NAME, ISE_GIRIS, TELIM_TARIXI, GOZLEME_GUNU
+Yalnız IT_PROG və SA_REP vəzifəsində işləyənlər görünsün.
+
+Task 5.
+DUAL cədvəlindən istifadə edərək aşağıdakı hesablamaları yerinə yetirin:
+a) 15.10.1998 tarixində doğulan bir şəxsin bu günə (SYSDATE) olan dəqiq tam yaşını hesablayın.
+b) 31.01.2025 tarixinə ADD_MONTHS ilə 1 ay əlavə edin və nəticəni DD.MM.YYYY formatında çıxarın.
+Şərhdə yazın: Yaş hesablayarkən niyə (SYSDATE - dogum_tarixi) / 365 düsturu əvəzinə MONTHS_BETWEEN və TRUNC istifadə olunur?
+
+Task 6. Səhvləri tapın
+Aşağıdakı sorğuda 3 səhv var. Məqsəd: May ayında işə girən işçilərin adını, maaşını (maska kiçik olduğu üçün #### çıxmamalıdır) və işə girdiyi saatı göstərməkdir. Səhvləri düzəldin və şərhdə hər səhvin nə olduğunu yazın:
+
+SELECT FIRST_NAME,
+       TO_CHAR(SALARY, '999') AS MAAS,
+       EXTRACT(HOUR FROM HIRE_DATE) AS SAAT
+FROM HR.EMPLOYEES
+WHERE TO_CHAR(HIRE_DATE, 'Month') = 'May';
+
+Task 7.
+Hər bir departament (DEPARTMENT_ID) üzrə statistika çıxarın (departamenti NULL olanlar nəzərə alınmasın):
+- ISCI_SAYI:      departamentdəki işçi sayı
+- ILK_ISCI_TARIX: departamentə ən erkən işə girən işçinin tarixi (DD.MM.YYYY formatında)
+- SON_ISCI_TARIX: departamentə ən son işə girən işçinin tarixi (DD.MM.YYYY formatında)
+- GUN_FERQI:      həmin departamentin ən köhnə və ən yeni işçisinin işə girmə tarixləri arasındakı tam gün fərqi
+Sütunlar: DEPARTMENT_ID, ISCI_SAYI, ILK_ISCI_TARIX, SON_ISCI_TARIX, GUN_FERQI
+Departament nömrəsinə görə artan sıralansın.
+
+Task 8.
+İşçilər üçün vahid formatlı ID kart nömrəsi yaradılır:
+- KART_NO:       EMP-00100-SK formatında (önündə sıfırlarla 5 rəqəmli EMPLOYEE_ID, adın ilk hərfi və soyadın ilk hərfi böyük hərflə)
+- EMAIL_UZUNLUQ: EMAIL sütununun uzunluğu
+- ILK_HERF_YERI: soyadın içində kiçik 'a' hərfinin neçənci simvol olduğu (yoxdursa 0 çıxsın)
+Sütunlar: KART_NO, LAST_NAME, EMAIL_UZUNLUQ, ILK_HERF_YERI
+Yalnız soyadında kiçik 'a' hərfi olan işçilər göstərilsin.
+
+============================== ÇƏTİN ==============================
+
+Task 9.
+İlin rübləri (Q) və ayları üzrə işə qəbul hesabatı hazırlayın:
+- RUB:       ilin rübü (1, 2, 3, 4 kimi)
+- AY_NO:     ayın 2 rəqəmli nömrəsi (01 - 12)
+- AY_ADI:    ayın tam adı, artıq boşluqsuz (January və s.)
+- ISCI_SAYI: həmin ayda işə girənlərin sayı
+- CEMI_MAAS: həmin ayda işə girənlərin maaşlarının cəmi ($120,500 formatında)
+Sütunlar: RUB, AY_NO, AY_ADI, ISCI_SAYI, CEMI_MAAS
+Nəticə əvvəl rübə, sonra ay nömrəsinə görə artan sıralansın.
+
+Task 10.
+a) Hər işçinin işə girdiyi ilin ilk gününü (01.01.YYYY) və həmin ilin son gününü (31.12.YYYY) tapın, eləcə də işə girdiyi gündən o ilin sonuna neçə gün qaldığını hesablayın:
+- ILIN_ILK_GUNU: TRUNC funksiyası ilə (DD.MM.YYYY formatında)
+- ILIN_SON_GUNU: ADD_MONTHS və TRUNC istifadə edərək (DD.MM.YYYY formatında)
+- ILE_QALAN_GUN: işə girdiyi tarixdən həmin ilin 31 dekabrına qədər olan gün sayı
+Sütunlar: FIRST_NAME, HIRE_DATE, ILIN_ILK_GUNU, ILIN_SON_GUNU, ILE_QALAN_GUN
+
+b) WHERE HIRE_DATE = SYSDATE şərti ilə bu gün işə girən işçiləri axtarsaq, niyə nəticə çıxmaya bilər? Düzgün yazılış necə olmalıdır? Şərhdə qeyd edin.

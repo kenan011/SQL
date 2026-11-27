@@ -1,0 +1,685 @@
+-- ============================================================
+-- SQL: FORMATLAR VƏ TARİXLƏR - QAYDALAR VƏ NÜMUNƏLƏR
+-- Mövzular: || və CONCAT, mətn funksiyaları, rəqəm formatı (TO_CHAR),
+--           TRUNC, tarix funksiyaları, TO_CHAR və TO_DATE ilə tarix formatları
+-- Bütün nümunələr Oracle-da (FreeSQL) yazılıb.
+-- HR cədvəllərinin adını həmişə HR. ilə yazın: HR.EMPLOYEES.
+--
+-- Tarix nəticələri bu faylda DD.MM.YYYY şəklində yazılıb.
+-- FreeSQL tarixi ekranda öz formatında göstərə bilər (məsələn 15-APR-25), bu normaldır.
+-- "ƏLAVƏ" qeydi olan hissələri bilmək faydalıdır, amma əsas mövzu deyil.
+-- ============================================================
+
+
+-- ============================================================
+-- 1. || İLƏ BİRLƏŞDİRMƏ
+--
+-- || iki mətni yan-yana yapışdırır. Aralarında boşluq lazımdırsa,
+-- onu özümüz ' ' kimi yazmalıyıq.
+-- ============================================================
+
+-- 1.1 Ad və soyadı birləşdirmək
+SELECT FIRST_NAME || ' ' || LAST_NAME AS TAM_AD
+FROM HR.EMPLOYEES;
+-- Steven King
+
+-- Boşluq yazılmasa:
+SELECT FIRST_NAME || LAST_NAME AS TAM_AD
+FROM HR.EMPLOYEES;
+-- StevenKing
+
+
+-- 1.2 Rəqəm də birləşir: Oracle onu özü mətnə çevirir
+SELECT FIRST_NAME || ' ' || SALARY || ' AZN alir' AS MELUMAT
+FROM HR.EMPLOYEES;
+-- Steven 24000 AZN alir
+
+
+-- 1.3 NULL ilə birləşdirmə
+-- Oracle-da NULL birləşdirmədə boş mətn kimi davranır.
+SELECT FIRST_NAME || ' - ' || COMMISSION_PCT AS MELUMAT
+FROM HR.EMPLOYEES;
+-- Steven -        (komissiya NULL-dur, heç nə yazılmır)
+-- Başqa bazalarda (PostgreSQL, SQL Server) belə birləşdirmənin nəticəsi tam NULL olur.
+
+
+-- 1.4 NULL əvəzinə mətn yazmaq: NVL + TO_CHAR
+-- SƏHV: NVL-in iki dəyəri eyni tipdə olmalıdır (biri rəqəm, biri mətn). ORA-01722
+SELECT FIRST_NAME || ' - ' || NVL(COMMISSION_PCT, 'yoxdur')
+FROM HR.EMPLOYEES;
+
+-- DÜZGÜN: əvvəl rəqəmi TO_CHAR ilə mətnə çeviririk
+SELECT FIRST_NAME || ' - ' || NVL(TO_CHAR(COMMISSION_PCT), 'yoxdur') AS MELUMAT
+FROM HR.EMPLOYEES;
+-- Steven - yoxdur
+-- Eleni - .2       <- diqqət: 0 itib (bölmə 1.5)
+
+
+-- 1.5 0.2 niyə .2 kimi çıxır
+-- Rəqəm formatsız mətnə çevriləndə Oracle 0 ilə 1 arasındakı rəqəmlərin
+-- önündəki 0-ı yazmır. Cədvəldəki dəyər dəyişmir, yalnız mətn belə görünür.
+SELECT TO_CHAR(0.2)  FROM DUAL;   -- '.2'
+SELECT TO_CHAR(0.15) FROM DUAL;   -- '.15'
+SELECT TO_CHAR(1.5)  FROM DUAL;   -- '1.5'  (1-dən böyüklərdə problem yoxdur)
+
+-- Həll 1: TO_CHAR-a format vermək (bölmə 5)
+SELECT FIRST_NAME || ' - ' || NVL(TO_CHAR(COMMISSION_PCT, 'FM0.00'), 'yoxdur') AS MELUMAT
+FROM HR.EMPLOYEES;
+-- Steven - yoxdur
+-- Eleni - 0.20
+
+-- Həll 2: faiz kimi göstərmək (0.2 * 100 = 20, sıfır problemi yoxdur)
+SELECT FIRST_NAME || ' - ' || COMMISSION_PCT * 100 || '%' AS KOMISSIYA
+FROM HR.EMPLOYEES
+WHERE COMMISSION_PCT IS NOT NULL;
+-- Eleni - 20%
+
+
+-- ============================================================
+-- 2. CONCAT
+--
+-- CONCAT(a, b) bir dəfədə YALNIZ 2 dəyər birləşdirir.
+-- Çox dəyər üçün CONCAT-ı bir-birinin içinə yazırıq.
+-- Qayda: n dəyər üçün n-1 CONCAT lazımdır.
+-- İçdən çölə doğru oxunur.
+-- ============================================================
+
+-- 2.1 İki dəyər
+SELECT CONCAT(FIRST_NAME, LAST_NAME) FROM HR.EMPLOYEES;
+-- StevenKing
+
+-- 2.2 Üç dəyər: ad + boşluq + soyad (2 CONCAT)
+SELECT CONCAT(CONCAT(FIRST_NAME, ' '), LAST_NAME) AS TAM_AD
+FROM HR.EMPLOYEES;
+-- 1) CONCAT(FIRST_NAME, ' ')   -> 'Steven '
+-- 2) CONCAT('Steven ', LAST_NAME) -> 'Steven King'
+
+-- 2.3 Altı dəyər: 'Steven King (AD_PRES)' (5 CONCAT)
+SELECT CONCAT(CONCAT(CONCAT(CONCAT(CONCAT(FIRST_NAME, ' '), LAST_NAME), ' ('), JOB_ID), ')') AS MELUMAT
+FROM HR.EMPLOYEES;
+-- Addım-addım:
+-- CONCAT(FIRST_NAME, ' ')   -> 'Steven '
+-- CONCAT(..., LAST_NAME)    -> 'Steven King'
+-- CONCAT(..., ' (')         -> 'Steven King ('
+-- CONCAT(..., JOB_ID)       -> 'Steven King (AD_PRES'
+-- CONCAT(..., ')')          -> 'Steven King (AD_PRES)'
+
+-- Eyni şey || ilə:
+SELECT FIRST_NAME || ' ' || LAST_NAME || ' (' || JOB_ID || ')' AS MELUMAT
+FROM HR.EMPLOYEES;
+
+-- 2.4 CONCAT ilə || birlikdə
+SELECT CONCAT(FIRST_NAME || ' ', LAST_NAME) AS TAM_AD
+FROM HR.EMPLOYEES;
+-- FIRST_NAME || ' ' bir dəyər sayılır, CONCAT-a cəmi 2 dəyər gedir.
+
+-- 2.5 Rəqəm, NULL və tarix ilə
+SELECT CONCAT(CONCAT(FIRST_NAME, ': '), TO_CHAR(SALARY, 'FM99,999')) AS MAAS,
+       CONCAT(CONCAT(FIRST_NAME, ' - '), NVL(TO_CHAR(COMMISSION_PCT, 'FM0.00'), 'yoxdur')) AS KOMISSIYA,
+       CONCAT(CONCAT(FIRST_NAME, ' ise girib: '), TO_CHAR(HIRE_DATE, 'DD.MM.YYYY')) AS TARIX
+FROM HR.EMPLOYEES;
+-- Steven: 24,000 | Steven - yoxdur | Steven ise girib: 17.06.....
+
+-- 2.6 Səhvlər
+-- 3 dəyəri birbaşa yazmaq: ORA-00909 invalid number of arguments
+SELECT CONCAT(FIRST_NAME, ' ', LAST_NAME) FROM HR.EMPLOYEES;
+
+-- İç-içə CONCAT-da mötərizəni bağlamağı unutmaq: ORA-00907 missing right parenthesis
+SELECT CONCAT(CONCAT(FIRST_NAME, ' '), LAST_NAME FROM HR.EMPLOYEES;
+
+-- Nəticə: CONCAT-ı bilmək lazımdır, amma 3 və daha çox dəyər olanda || daha rahatdır.
+
+
+-- ============================================================
+-- 3. DUAL
+--
+-- DUAL Oracle-da 1 sətir və 1 sütundan ibarət köməkçi cədvəldir.
+-- Oracle-da FROM yazmaq məcburidir. Heç bir cədvəldən oxumadan bir funksiyanı
+-- yoxlamaq istəyəndə FROM DUAL yazılır.
+-- ============================================================
+
+SELECT UPPER('salam') FROM DUAL;    -- SALAM
+SELECT 5 * 4 FROM DUAL;             -- 20
+SELECT SYSDATE FROM DUAL;           -- bugünkü tarix
+
+
+-- ============================================================
+-- 4. MƏTN FUNKSİYALARI
+-- ============================================================
+
+-- 4.1 Böyük-kiçik hərf
+SELECT UPPER(FIRST_NAME)        AS BOYUK,      -- STEVEN
+       LOWER(FIRST_NAME)        AS KICIK,      -- steven
+       INITCAP('sTEVEN kING')   AS ILK_HERF    -- Steven King (hər sözün ilk hərfi böyük)
+FROM HR.EMPLOYEES;
+
+-- 4.2 LENGTH: mətnin uzunluğu (boşluqlar da sayılır)
+SELECT FIRST_NAME, LENGTH(FIRST_NAME) AS UZUNLUQ FROM HR.EMPLOYEES;
+-- Steven 6
+
+-- 4.3 SUBSTR(mətn, başlanğıc, uzunluq): mətnin bir hissəsini götürmək
+SELECT SUBSTR('Steven', 1, 3) FROM DUAL;   -- Ste  (1-ci simvoldan başlayıb 3 simvol)
+SELECT SUBSTR('Steven', 3)    FROM DUAL;   -- even (uzunluq yazılmasa, sona qədər)
+SELECT SUBSTR('Steven', -2)   FROM DUAL;   -- en   (mənfi başlanğıc: sondan sayılır)
+-- Oracle-da sayma 1-dən başlayır, 0-dan yox.
+
+-- 4.4 INSTR(mətn, axtarılan): simvolun neçənci yerdə olduğunu tapır
+SELECT INSTR('Steven', 'v') FROM DUAL;     -- 4
+SELECT INSTR('Steven', 'x') FROM DUAL;     -- 0 (tapılmadı)
+
+-- 4.5 REPLACE(mətn, nə, nə ilə): əvəz etmək
+SELECT REPLACE('515.123.4567', '.', '-') FROM DUAL;   -- 515-123-4567
+SELECT REPLACE('515.123.4567', '.', '')  FROM DUAL;   -- 5151234567 (silmək)
+
+-- 4.6 TRIM, LTRIM, RTRIM: boşluqları silmək
+SELECT '[' || TRIM('   salam   ')  || ']' FROM DUAL;  -- [salam]      (hər iki tərəfdən)
+SELECT '[' || LTRIM('   salam   ') || ']' FROM DUAL;  -- [salam   ]   (yalnız soldan)
+SELECT '[' || RTRIM('   salam   ') || ']' FROM DUAL;  -- [   salam]   (yalnız sağdan)
+-- [ ] mötərizələri boşluqları gözlə görmək üçün yazılıb.
+
+-- 4.7 LPAD, RPAD: mətni müəyyən uzunluğa qədər doldurmaq
+SELECT LPAD(SALARY, 8, '*') FROM HR.EMPLOYEES;     -- ***24000 (soldan * ilə 8 simvola qədər)
+SELECT RPAD(FIRST_NAME, 10, '.') FROM HR.EMPLOYEES; -- Steven....
+SELECT LPAD(EMPLOYEE_ID, 5, '0') FROM HR.EMPLOYEES; -- 00100
+
+-- 4.8 Praktik nümunələr
+-- Qısa ad: S. King
+SELECT SUBSTR(FIRST_NAME, 1, 1) || '. ' || LAST_NAME AS QISA_AD
+FROM HR.EMPLOYEES;
+
+-- Email: HR-da email 'SKING' kimi saxlanılır
+SELECT LOWER(EMAIL) || '@company.com' AS TAM_EMAIL
+FROM HR.EMPLOYEES;
+-- sking@company.com
+
+-- Böyük-kiçik hərfdən asılı olmayan axtarış
+-- Oracle-da 'it' = 'IT' doğru deyil, ona görə hər iki tərəfi eyni hala gətiririk.
+SELECT * FROM HR.DEPARTMENTS
+WHERE UPPER(DEPARTMENT_NAME) = 'IT';
+
+SELECT FIRST_NAME, LAST_NAME FROM HR.EMPLOYEES
+WHERE LOWER(LAST_NAME) LIKE '%an%';
+
+
+-- ============================================================
+-- 5. RƏQƏM FORMATI: TO_CHAR(rəqəm, 'format')
+--
+-- Format simvolları:
+-- 9    bu yerdə rəqəm VARSA yazılsın
+-- 0    bu yerdə rəqəm MÜTLƏQ yazılsın (yoxdursa 0 yazılır)
+-- ,    minlik ayırıcı
+-- .    onluq nöqtə
+-- $    dollar işarəsi
+-- FM   öndəki boşluğu silir (və 9-la yazılan kəsrin sonundakı artıq 0-ları)
+--
+-- TO_CHAR-ın nəticəsi MƏTNDİR, rəqəm deyil.
+-- ============================================================
+
+SELECT SALARY,
+       TO_CHAR(SALARY, '99,999')      AS F1,   -- ' 24,000' (önündə boşluq: mənfi işarəsi üçün yer)
+       TO_CHAR(SALARY, 'FM99,999')    AS F2,   -- '24,000'
+       TO_CHAR(SALARY, 'FM99,999.00') AS F3,   -- '24,000.00'
+       TO_CHAR(SALARY, 'FM$99,999')   AS F4    -- '$24,000'
+FROM HR.EMPLOYEES;
+
+-- Boşluğu gözlə görmək üçün:
+SELECT '[' || TO_CHAR(24000, '99,999')   || ']' FROM DUAL;   -- [ 24,000]
+SELECT '[' || TO_CHAR(24000, 'FM99,999') || ']' FROM DUAL;   -- [24,000]
+
+-- 0 ilə 9-un fərqi
+SELECT TO_CHAR(0.2,  'FM0.00') FROM DUAL;   -- 0.20
+SELECT TO_CHAR(0.2,  'FM0.99') FROM DUAL;   -- 0.2
+SELECT TO_CHAR(0.15, 'FM0.99') FROM DUAL;   -- 0.15
+SELECT TO_CHAR(7,    'FM000')  FROM DUAL;   -- 007
+
+-- Format maskası rəqəmdən kiçikdirsə, nəticə #### olur
+SELECT TO_CHAR(24000, '999') FROM DUAL;     -- ####
+
+-- TƏLƏ: TO_CHAR nəticəsi mətndir, mətn kimi sıralanır
+SELECT FIRST_NAME, TO_CHAR(SALARY, 'FM99,999') AS MAAS
+FROM HR.EMPLOYEES
+ORDER BY MAAS DESC;
+-- '9,000' '24,000'-dən yuxarıda çıxır, çünki mətn kimi '9' > '2'
+
+-- DÜZGÜN: göstərmək üçün formatlayırıq, sıralamaq üçün rəqəmin özünü işlədirik
+SELECT FIRST_NAME, TO_CHAR(SALARY, 'FM99,999') AS MAAS
+FROM HR.EMPLOYEES
+ORDER BY SALARY DESC;
+
+-- MOD(a, b): a-nı b-yə böləndə qalan qalıq
+SELECT MOD(10, 3), MOD(150, 12), MOD(24, 12) FROM DUAL;   -- 1, 6, 0
+
+
+-- ============================================================
+-- 6. TRUNC: KƏSMƏK
+--
+-- TRUNC verilən yerdən sonrakı hissəni ATIR, yuvarlaqlaşdırmır.
+-- Rəqəmdə də, tarixdə də işləyir (tarix üçün bölmə 12).
+-- ============================================================
+
+SELECT TRUNC(4.789)    FROM DUAL;   -- 4      (kəsr hissəsi tam silinir)
+SELECT TRUNC(4.789, 1) FROM DUAL;   -- 4.7    (vergüldən sonra 1 rəqəm qalır)
+SELECT TRUNC(4.789, 2) FROM DUAL;   -- 4.78   (vergüldən sonra 2 rəqəm qalır)
+SELECT TRUNC(1789, -2) FROM DUAL;   -- 1700   (mənfi: sağdan 2 rəqəm sıfırlanır)
+
+-- TRUNC və ROUND
+--                TRUNC    ROUND
+-- 4.789          4        5
+-- 4.789, 2       4.78     4.79
+-- 1789, -2       1700     1800
+-- TRUNC sonrakı rəqəmə baxmır, sadəcə kəsir. ROUND baxır və yuvarlaqlaşdırır.
+
+-- TRUNC və FLOOR: fərq yalnız mənfi rəqəmlərdə görünür
+SELECT TRUNC(-4.7), FLOOR(-4.7) FROM DUAL;   -- -4, -5
+-- TRUNC kəsri atır (sıfıra doğru gedir), FLOOR həmişə aşağı (kiçik rəqəmə) gedir.
+
+
+-- ============================================================
+-- 7. TARİX: DATE TİPİ VƏ BUGÜNKÜ TARİX
+--
+-- Oracle-da DATE tipinin içində tarixdən əlavə SAAT, DƏQİQƏ və SANİYƏ də var,
+-- ekranda görünməsə belə.
+-- ============================================================
+
+SELECT SYSDATE        FROM DUAL;   -- bugünkü tarix + saat (serverin saatı)
+SELECT CURRENT_DATE   FROM DUAL;   -- sessiyanın saat qurşağına görə tarix + saat
+SELECT SYSTIMESTAMP   FROM DUAL;   -- ƏLAVƏ: saniyənin hissələri və saat qurşağı ilə
+SELECT TRUNC(SYSDATE) FROM DUAL;   -- bugünkü tarix, saat 00:00:00
+
+-- Saatı görmək üçün:
+SELECT TO_CHAR(SYSDATE, 'DD.MM.YYYY HH24:MI:SS')        FROM DUAL;   -- 14.11.2026 15:42:18
+SELECT TO_CHAR(TRUNC(SYSDATE), 'DD.MM.YYYY HH24:MI:SS') FROM DUAL;   -- 14.11.2026 00:00:00
+
+-- Qeyd: SYSDATE serverin saatıdır. FreeSQL-in serveri başqa ölkədədir,
+-- ona görə saat Bakı saatından fərqli ola bilər.
+
+
+-- ============================================================
+-- 8. TARİXLƏ HESABLAMA
+--
+-- tarix + rəqəm  = tarix (rəqəm qədər gün sonra)
+-- tarix - rəqəm  = tarix (rəqəm qədər gün əvvəl)
+-- tarix - tarix  = rəqəm (aradakı gün sayı)
+-- tarix + tarix  = XƏTA
+-- ============================================================
+
+SELECT DATE '2025-01-15' + 10 FROM DUAL;                  -- 25.01.2025
+SELECT DATE '2025-01-15' - 20 FROM DUAL;                  -- 26.12.2024
+SELECT DATE '2025-03-01' - DATE '2025-02-01' FROM DUAL;   -- 28
+SELECT SYSDATE + 1/24 FROM DUAL;                          -- ƏLAVƏ: 1 saat sonra (1 gün / 24)
+
+-- SƏHV: iki tarixi toplamaq olmaz. ORA-00975
+SELECT DATE '2025-01-15' + DATE '2025-01-01' FROM DUAL;
+
+-- İşçi neçə gündür işləyir
+SELECT FIRST_NAME,
+       SYSDATE - HIRE_DATE        AS GUN,        -- kəsrli: 7820.65593
+       TRUNC(SYSDATE - HIRE_DATE) AS TAM_GUN     -- 7820
+FROM HR.EMPLOYEES;
+-- Kəsr ona görə çıxır ki, SYSDATE-də saat var, HIRE_DATE-də isə saat 00:00-dır.
+
+
+-- ============================================================
+-- 9. MONTHS_BETWEEN(tarix1, tarix2): İKİ TARİX ARASINDA NEÇƏ AY VAR
+--
+-- tarix1 - tarix2 hesablanır, nəticə aylarla.
+-- ============================================================
+
+SELECT MONTHS_BETWEEN(DATE '2025-03-15', DATE '2025-01-15') FROM DUAL;  --  2
+SELECT MONTHS_BETWEEN(DATE '2025-01-15', DATE '2025-03-15') FROM DUAL;  -- -2
+SELECT MONTHS_BETWEEN(DATE '2025-03-20', DATE '2025-03-05') FROM DUAL;  --  0.4838...
+SELECT MONTHS_BETWEEN(DATE '2025-03-31', DATE '2025-02-28') FROM DUAL;  --  1
+
+-- Nüanslar:
+-- - Sıra vacibdir. Böyük (gec) tarix birinci yazılmasa, nəticə mənfi çıxır.
+-- - Nəticə adətən kəsrli olur. Kəsr ayı 31 gün sayaraq hesablanır: 15 gün / 31 = 0.48
+-- - Nəticə tam ədəd iki halda çıxır:
+--   hər iki tarix ayın eyni günüdür (15 və 15),
+--   və ya hər iki tarix ayın son günüdür (31 mart və 28 fevral).
+-- - Tam ay sayı üçün TRUNC(MONTHS_BETWEEN(...)) yazılır.
+
+-- 9.1 Yaş: TRUNC(ay sayı / 12)
+SELECT TRUNC(MONTHS_BETWEEN(DATE '2025-11-14', DATE '2000-11-15') / 12) FROM DUAL;
+-- 24 (düzgün: ad günü sabahdır, hələ 25 tamam olmayıb)
+
+-- SƏHV yol: gün sayını 365-ə bölmək
+SELECT TRUNC((DATE '2025-11-14' - DATE '2000-11-15') / 365) FROM DUAL;
+-- 25 (səhv: uzun illərin artıq günləri nəticəni dəyişir)
+
+-- 9.2 Staj: neçə il və neçə ay
+SELECT FIRST_NAME || ' ' || LAST_NAME                     AS ISCI,
+       TO_CHAR(HIRE_DATE, 'DD.MM.YYYY')                   AS ISE_GIRIS,
+       TRUNC(MONTHS_BETWEEN(SYSDATE, HIRE_DATE))          AS CEMI_AY,
+       TRUNC(MONTHS_BETWEEN(SYSDATE, HIRE_DATE) / 12)     AS STAJ_IL,
+       MOD(TRUNC(MONTHS_BETWEEN(SYSDATE, HIRE_DATE)), 12) AS STAJ_AY
+FROM HR.EMPLOYEES;
+-- Məsələn CEMI_AY = 150 olarsa: STAJ_IL = 12, STAJ_AY = MOD(150, 12) = 6, yəni 12 il 6 ay.
+-- Burada ROUND yox, TRUNC lazımdır: 22.9 il işləyən adamın stajı 22 ildir, 23 yox.
+
+
+-- ============================================================
+-- 10. ADD_MONTHS(tarix, n): n AY ƏLAVƏ ETMƏK
+-- ============================================================
+
+SELECT ADD_MONTHS(DATE '2025-01-15', 3)  FROM DUAL;   -- 15.04.2025
+SELECT ADD_MONTHS(DATE '2025-01-15', -1) FROM DUAL;   -- 15.12.2024  (mənfi = geriyə)
+SELECT ADD_MONTHS(DATE '2025-01-15', 12) FROM DUAL;   -- 15.01.2026  (1 il = 12 ay)
+
+-- Ayın sonu ilə bağlı nüanslar
+SELECT ADD_MONTHS(DATE '2025-01-31', 1)  FROM DUAL;   -- 28.02.2025  (31 fevral yoxdur -> ayın son günü)
+SELECT ADD_MONTHS(DATE '2025-02-28', 1)  FROM DUAL;   -- 31.03.2025  (!) 28 mart yox
+SELECT ADD_MONTHS(DATE '2024-02-29', 12) FROM DUAL;   -- 28.02.2025
+-- Qayda: başlanğıc tarix ayın SON GÜNÜDÜRSƏ, nəticə də ayın SON GÜNÜ olur.
+-- 28 fevral 2025 fevralın son günüdür, ona görə +1 ay = martın son günü = 31 mart.
+
+-- 3 aylıq sınaq müddəti nə vaxt bitib
+SELECT FIRST_NAME, HIRE_DATE, ADD_MONTHS(HIRE_DATE, 3) AS SINAQ_BITIR
+FROM HR.EMPLOYEES;
+
+-- Son 6 ayda olanlar (SYSDATE-dən 6 ay əvvəldən sonra)
+-- WHERE HIRE_DATE >= ADD_MONTHS(SYSDATE, -6)
+
+
+-- ============================================================
+-- 11. LAST_DAY VƏ NEXT_DAY
+-- ============================================================
+
+SELECT LAST_DAY(DATE '2025-01-10')     FROM DUAL;   -- 31.01.2025  (ayın son günü)
+SELECT LAST_DAY(DATE '2024-02-10')     FROM DUAL;   -- 29.02.2024  (uzun il)
+SELECT LAST_DAY(DATE '2025-01-10') + 1 FROM DUAL;   -- 01.02.2025  (növbəti ayın ilk günü)
+SELECT LAST_DAY(SYSDATE) - TRUNC(SYSDATE) FROM DUAL; -- ayın sonuna neçə gün qalıb
+
+-- ƏLAVƏ: NEXT_DAY(tarix, 'gün'): verilən tarixdən SONRA gələn ilk həmin gün
+SELECT NEXT_DAY(DATE '2025-01-15', 'MONDAY') FROM DUAL;   -- 20.01.2025
+-- 15 yanvar 2025 çərşənbədir. Gün adı bazanın dilində yazılır (FreeSQL-də ingiliscə).
+
+
+-- ============================================================
+-- 12. TARİXLƏRDƏ TRUNC VƏ ROUND
+--
+-- TRUNC(tarix)          saatı silir -> 00:00:00
+-- TRUNC(tarix, 'MM')    gün və saatı silir -> ayın ilk günü
+-- TRUNC(tarix, 'Q')     rübün ilk günü
+-- TRUNC(tarix, 'YYYY')  ilin ilk günü
+-- Format verilsə, həmin vahiddən KİÇİK olan hər şey sıfırlanır.
+-- ============================================================
+
+SELECT TRUNC(DATE '2025-08-20', 'MM')   FROM DUAL;   -- 01.08.2025
+SELECT TRUNC(DATE '2025-08-20', 'Q')    FROM DUAL;   -- 01.07.2025
+SELECT TRUNC(DATE '2025-08-20', 'YYYY') FROM DUAL;   -- 01.01.2025
+
+-- ƏLAVƏ: ROUND ən yaxın dövrə yuvarlaqlaşdırır
+SELECT ROUND(DATE '2025-03-10', 'MM')   FROM DUAL;   -- 01.03.2025
+SELECT ROUND(DATE '2025-03-16', 'MM')   FROM DUAL;   -- 01.04.2025  (16-sı və sonrası yuxarı)
+SELECT ROUND(DATE '2025-07-01', 'YYYY') FROM DUAL;   -- 01.01.2026  (1 iyuldan sonra yuxarı)
+
+-- TRUNC nə vaxt lazımdır:
+-- WHERE HIRE_DATE = SYSDATE          heç vaxt tapmır: SYSDATE-də saat 15:42:18 var
+-- WHERE HIRE_DATE = TRUNC(SYSDATE)   düzgün: ikisi də 00:00:00
+
+
+-- ============================================================
+-- 13. EXTRACT: TARİXDƏN BİR HİSSƏNİ RƏQƏM KİMİ GÖTÜRMƏK
+-- ============================================================
+
+SELECT EXTRACT(YEAR  FROM DATE '2025-08-20') FROM DUAL;   -- 2025
+SELECT EXTRACT(MONTH FROM DATE '2025-08-20') FROM DUAL;   -- 8
+SELECT EXTRACT(DAY   FROM DATE '2025-08-20') FROM DUAL;   -- 20
+
+SELECT FIRST_NAME,
+       EXTRACT(YEAR  FROM HIRE_DATE) AS IL,
+       EXTRACT(MONTH FROM HIRE_DATE) AS AY
+FROM HR.EMPLOYEES;
+
+-- SƏHV: DATE tipində EXTRACT yalnız YEAR, MONTH, DAY ilə işləyir. ORA-30076
+SELECT EXTRACT(HOUR FROM SYSDATE) FROM DUAL;
+-- Saatı TO_CHAR ilə götürmək olar: TO_CHAR(SYSDATE, 'HH24')
+
+-- EXTRACT və TO_CHAR fərqi:
+-- EXTRACT(MONTH FROM ...)  -> 8     (RƏQƏM)
+-- TO_CHAR(..., 'MM')       -> '08'  (MƏTN)
+
+
+-- ============================================================
+-- 14. TO_CHAR(tarix, 'format'): TARİXİ İSTƏDİYİN FORMADA GÖSTƏRMƏK
+--
+-- Format       Nə göstərir                          20.08.2025 14:30:05 üçün
+-- YYYY         4 rəqəmli il                         2025
+-- YY           2 rəqəmli il                         25
+-- YEAR         il sözlə (ƏLAVƏ)                     TWENTY TWENTY-FIVE
+-- Q            rüb                                  3
+-- MM           ay nömrəsi                           08
+-- MON / Mon    ayın qısa adı                        AUG / Aug
+-- MONTH/Month  ayın tam adı (9 simvola qədər)       AUGUST / August
+-- DD           ayın günü                            20
+-- DDD          ilin neçənci günü                    232
+-- DY / Dy      həftənin günü, qısa                  WED / Wed
+-- DAY / Day    həftənin günü, tam (9 simvola qədər) WEDNESDAY / Wednesday
+-- D            həftənin günü nömrə ilə (ƏLAVƏ, ölkə ayarından asılıdır)
+-- WW / IW      ilin neçənci həftəsi (ƏLAVƏ)         34
+-- HH24 / HH    saat (24 / 12 saatlıq)               14 / 02
+-- MI           dəqiqə (MM DEYİL!)                   30
+-- SS           saniyə                               05
+-- AM           AM / PM                              PM
+-- FM           artıq boşluqları və öndəki 0-ları silir
+-- "mətn"       dırnaq içində istənilən söz
+-- th           sıra şəkilçisi, ingiliscə (ƏLAVƏ)    20th
+-- ============================================================
+
+SELECT TO_CHAR(DATE '2025-08-05', 'DD.MM.YYYY')      FROM DUAL;   -- 05.08.2025
+SELECT TO_CHAR(DATE '2025-08-05', 'FMDD Month YYYY') FROM DUAL;   -- 5 August 2025
+SELECT TO_CHAR(DATE '2025-08-05', 'Dy, DD Mon YYYY') FROM DUAL;   -- Tue, 05 Aug 2025
+SELECT TO_CHAR(SYSDATE, 'DD.MM.YYYY "saat" HH24:MI') FROM DUAL;   -- 14.11.2026 saat 15:30
+SELECT TO_CHAR(DATE '2025-08-05', 'FMDDth Month')    FROM DUAL;   -- ƏLAVƏ: 5th August
+
+SELECT FIRST_NAME,
+       TO_CHAR(HIRE_DATE, 'DD.MM.YYYY')     AS T1,
+       TO_CHAR(HIRE_DATE, 'FMDD Month YYYY') AS T2,
+       TO_CHAR(HIRE_DATE, 'FMDay')          AS GUN
+FROM HR.EMPLOYEES;
+
+
+-- 14.1 Böyük-kiçik hərf vacibdir: format necə yazılıbsa, nəticə də elə çıxır
+-- 'MONTH' -> AUGUST     'Month' -> August     'month' -> august
+-- DAY, DY, MON üçün də eynidir.
+
+
+-- 14.2 Month və Day niyə 9 simvol olur
+-- TO_CHAR(tarix, 'Month') ayın adını HƏMİŞƏ 9 simvol uzunluğunda qaytarır.
+-- Ən uzun ay adı September-dir (9 hərf). Qısa adların sonuna boşluq əlavə olunur:
+--
+-- Ay          Hərf   Boşluq   Nəticə
+-- September   9      0        'September'
+-- January     7      2        'January  '
+-- June        4      5        'June     '
+-- May         3      6        'May      '
+--
+-- Gün adlarında da eynidir: ən uzun gün Wednesday-dir (9 hərf),
+-- ona görə 'Monday' -> 'Monday   ' olur.
+
+-- Boşluqları gözlə görmək üçün:
+SELECT '[' || TO_CHAR(DATE '2025-05-10', 'Month')   || ']' FROM DUAL;   -- [May      ]
+SELECT '[' || TO_CHAR(DATE '2025-05-10', 'FMMonth') || ']' FROM DUAL;   -- [May]
+SELECT LENGTH(TO_CHAR(DATE '2025-05-10', 'Month'))   FROM DUAL;         -- 9
+SELECT LENGTH(TO_CHAR(DATE '2025-05-10', 'FMMonth')) FROM DUAL;         -- 3
+
+-- Bu boşluqlar iki problem yaradır:
+-- 1) Tarixin ortasında artıq boşluq qalır
+SELECT TO_CHAR(DATE '2025-05-10', 'DD Month YYYY')   FROM DUAL;   -- 10 May       2025
+SELECT TO_CHAR(DATE '2025-05-10', 'FMDD Month YYYY') FROM DUAL;   -- 10 May 2025
+-- 2) Müqayisə heç vaxt tapmır (xəta yoxdur, sadəcə 0 sətir)
+-- WHERE TO_CHAR(HIRE_DATE, 'Month') = 'May'      'May      ' = 'May' doğru deyil
+-- WHERE TO_CHAR(HIRE_DATE, 'FMMonth') = 'May'    düzgün
+--
+-- Qayda: Month və Day formatlarını həmişə FM ilə yazın.
+
+
+-- ============================================================
+-- 15. MƏTNİ TARİXƏ ÇEVİRMƏK: TO_DATE VƏ DATE
+-- ============================================================
+
+SELECT TO_DATE('15.03.2005', 'DD.MM.YYYY')               FROM DUAL;
+SELECT TO_DATE('15.03.2005 14:30', 'DD.MM.YYYY HH24:MI') FROM DUAL;
+SELECT TO_DATE('March 15, 2005', 'Month DD, YYYY')       FROM DUAL;
+-- TO_DATE-də ikinci hissə mətnin NECƏ yazıldığını göstərir.
+
+SELECT DATE '2005-03-15' FROM DUAL;
+-- DATE literalı: format həmişə YYYY-MM-DD, saat yazılmır.
+
+SELECT TIMESTAMP '2005-03-15 14:30:00' FROM DUAL;   -- ƏLAVƏ: saat ilə birlikdə
+
+-- TO_DATE səhvləri
+-- ORA-01843: not a valid month (13-cü ay yoxdur)
+SELECT TO_DATE('15/13/2005', 'DD/MM/YYYY') FROM DUAL;
+-- ORA-01839: 31 fevral yoxdur
+SELECT TO_DATE('31.02.2025', 'DD.MM.YYYY') FROM DUAL;
+-- ORA-01830: mətndə saat var, formatda yoxdur
+SELECT TO_DATE('15.03.2005 14:30', 'DD.MM.YYYY') FROM DUAL;
+
+-- ƏLAVƏ: YY və RR fərqi
+SELECT TO_DATE('15.03.99', 'DD.MM.YY') FROM DUAL;   -- 15.03.2099 (YY: həmişə bu əsr)
+SELECT TO_DATE('15.03.99', 'DD.MM.RR') FROM DUAL;   -- 15.03.1999 (RR: 50-99 keçən əsr, 00-49 bu əsr)
+-- Ən təhlükəsiz yol ili həmişə 4 rəqəmlə (YYYY) yazmaqdır.
+
+
+-- ============================================================
+-- 16. TARİXƏ GÖRƏ FİLTR
+-- ============================================================
+
+-- 16.1 İl üzrə: iki yol
+SELECT FIRST_NAME, HIRE_DATE FROM HR.EMPLOYEES
+WHERE EXTRACT(YEAR FROM HIRE_DATE) = 2005;
+
+SELECT FIRST_NAME, HIRE_DATE FROM HR.EMPLOYEES
+WHERE HIRE_DATE >= DATE '2005-01-01' AND HIRE_DATE < DATE '2006-01-01';
+-- Qeyd: FreeSQL-dəki HR versiyasında illər fərqli ola bilər. Əvvəl hansı illərin
+-- olduğuna baxın: SELECT MIN(HIRE_DATE), MAX(HIRE_DATE) FROM HR.EMPLOYEES;
+
+-- 16.2 Ay üzrə: iyunda işə girənlər
+-- WHERE EXTRACT(MONTH FROM HIRE_DATE) = 6     düzgün (rəqəm)
+-- WHERE TO_CHAR(HIRE_DATE, 'MM') = '06'       düzgün (mətn)
+-- WHERE TO_CHAR(HIRE_DATE, 'MM') = '6'        xəta yoxdur, amma 0 sətir: 'MM' '06' qaytarır
+-- WHERE TO_CHAR(HIRE_DATE, 'MI') = '06'       xəta yoxdur, amma MI dəqiqədir, ay deyil
+
+-- 16.3 Həftənin günü üzrə: bazar ertəsi işə girənlər
+-- WHERE TO_CHAR(HIRE_DATE, 'DY') = 'MON'          düzgün
+-- WHERE TO_CHAR(HIRE_DATE, 'DAY') = 'MONDAY'      0 sətir: 'MONDAY   ' boşluqla gəlir
+-- WHERE TO_CHAR(HIRE_DATE, 'FMDAY') = 'MONDAY'    düzgün
+
+-- 16.4 SƏHV: mətni tarixlə müqayisə etmək
+-- WHERE HIRE_DATE > '01.01.2005'
+-- Mətn tarixə avtomatik çevrilir, format isə bazanın ayarından asılıdır:
+-- xəta verə və ya səhv işləyə bilər. DATE '2005-01-01' və ya TO_DATE yazın.
+
+-- 16.5 BETWEEN tələsi
+-- WHERE HIRE_DATE BETWEEN DATE '2005-01-01' AND DATE '2005-12-31'
+-- Tarixdə saat varsa, 31 dekabr saat 10:00 nəticəyə düşmür
+-- (DATE '2005-12-31' 31 dekabr saat 00:00-dır).
+-- Təhlükəsiz yol: >= ilk gün AND < növbəti günün başlanğıcı (16.1-dəki kimi).
+
+
+-- ============================================================
+-- 17. TARİXƏ GÖRƏ QRUPLAŞDIRMA
+-- ============================================================
+
+-- 17.1 İllər üzrə işə qəbul
+SELECT EXTRACT(YEAR FROM HIRE_DATE) AS IL, COUNT(*) AS SAY
+FROM HR.EMPLOYEES
+GROUP BY EXTRACT(YEAR FROM HIRE_DATE)
+ORDER BY IL;
+
+-- 17.2 İl-ay üzrə: 'YYYY-MM' mətn olsa da düzgün sıralanır
+SELECT TO_CHAR(HIRE_DATE, 'YYYY-MM') AS IL_AY, COUNT(*) AS SAY
+FROM HR.EMPLOYEES
+GROUP BY TO_CHAR(HIRE_DATE, 'YYYY-MM')
+ORDER BY IL_AY;
+
+-- 17.3 TƏLƏ: ay adına görə sıralama əlifba sırası ilə gedir
+SELECT TO_CHAR(HIRE_DATE, 'FMMonth') AS AY, COUNT(*) AS SAY
+FROM HR.EMPLOYEES
+GROUP BY TO_CHAR(HIRE_DATE, 'FMMonth')
+ORDER BY AY;
+-- April, August, December, ... (təqvim sırası ilə yox)
+
+-- DÜZGÜN: ay nömrəsini də qruplaşdırmaya əlavə edib ona görə sıralamaq
+SELECT TO_CHAR(HIRE_DATE, 'MM') AS AY_NO, TO_CHAR(HIRE_DATE, 'FMMonth') AS AY, COUNT(*) AS SAY
+FROM HR.EMPLOYEES
+GROUP BY TO_CHAR(HIRE_DATE, 'MM'), TO_CHAR(HIRE_DATE, 'FMMonth')
+ORDER BY AY_NO;
+
+-- 17.4 Həftənin hansı günü daha çox işə qəbul olub
+SELECT TO_CHAR(HIRE_DATE, 'FMDay') AS GUN, COUNT(*) AS SAY
+FROM HR.EMPLOYEES
+GROUP BY TO_CHAR(HIRE_DATE, 'FMDay')
+ORDER BY SAY DESC;
+
+-- 17.5 TƏLƏ: MIN/MAX-ı formatlanmış mətnə yox, tarixin özünə tətbiq edin
+-- MIN(TO_CHAR(HIRE_DATE, 'DD.MM.YYYY'))  -> mətnlərin ən kiçiyi (ən kiçik GÜNLƏ başlayan), ən erkən tarix deyil
+-- TO_CHAR(MIN(HIRE_DATE), 'DD.MM.YYYY')  -> düzgün: əvvəl ən erkən tarix tapılır, sonra formatlanır
+
+-- 17.6 TƏLƏ: tarixə görə sıralamaq üçün tarixin özünü işlədin
+-- ORDER BY TO_CHAR(HIRE_DATE, 'DD.MM.YYYY')   mətn kimi: əvvəl günə, sonra aya görə sıralanır
+-- ORDER BY HIRE_DATE                          düzgün
+
+
+-- ============================================================
+-- 18. ƏLAVƏ: INTERVAL
+-- ============================================================
+
+SELECT SYSDATE + INTERVAL '2' HOUR    FROM DUAL;   -- 2 saat sonra
+SELECT SYSDATE + INTERVAL '10' MINUTE FROM DUAL;   -- 10 dəqiqə sonra
+
+-- SƏHV: ORA-01839, çünki 31 fevral yoxdur
+SELECT DATE '2025-01-31' + INTERVAL '1' MONTH FROM DUAL;
+-- Ona görə ay əlavə etmək üçün həmişə ADD_MONTHS işlədilir.
+
+
+-- ============================================================
+-- 19. SƏHVLƏR CƏDVƏLİ
+--
+-- Səhv                                              Nəticə
+-- NVL(COMMISSION_PCT, 'yoxdur')                     ORA-01722 (tiplər fərqlidir)
+-- 0.2-ni formatsız birləşdirmək                     '.2' (0 itir) -> TO_CHAR(x, 'FM0.00')
+-- CONCAT(a, b, c)                                   ORA-00909
+-- İç-içə CONCAT-da mötərizə unudulub                ORA-00907
+-- TO_CHAR(24000, '999')                             '####' (maska kiçikdir)
+-- ORDER BY formatlanmış rəqəm/tarix alias-ı          mətn kimi sıralanır
+-- tarix + tarix                                     ORA-00975
+-- MONTHS_BETWEEN(kiçik, böyük)                      xəta yoxdur, nəticə mənfi
+-- Yaşı (gün sayı) / 365 ilə hesablamaq              bəzən 1 il artıq çıxır
+-- ADD_MONTHS(28 fevral, 1) -> 28 mart gözləmək      31 mart çıxır (ayın son günü qaydası)
+-- EXTRACT(HOUR FROM SYSDATE)                        ORA-30076
+-- Ay üçün MI yazmaq                                 dəqiqə çıxır, ay MM-dir
+-- Month / Day FM-siz                                sonda boşluqlar, müqayisə 0 sətir
+-- TO_CHAR(..., 'MM') = '6'                          0 sətir, '06' olmalıdır
+-- Ay adına görə ORDER BY                            əlifba sırası ilə
+-- MIN(TO_CHAR(tarix))                               mətnin minimumu, ən erkən tarix deyil
+-- WHERE HIRE_DATE > '01.01.2005'                    ayardan asılı: xəta və ya səhv nəticə
+-- TO_DATE('15/13/2005', 'DD/MM/YYYY')               ORA-01843
+-- TO_DATE('31.02.2025', 'DD.MM.YYYY')               ORA-01839
+-- Mətndə saat var, formatda yoxdur                  ORA-01830
+-- 'YY' ilə '99'                                     2099 çıxır
+-- WHERE HIRE_DATE = SYSDATE                         heç vaxt tapmır, TRUNC(SYSDATE) lazımdır
+-- BETWEEN ... AND DATE '...-31'                     son günün saatlı sətirləri düşmür
+-- ============================================================
+
+
+-- ============================================================
+-- 20. YADDA SAXLAYIN
+--
+-- - || mətni birləşdirir. Boşluğu özünüz yazın: FIRST_NAME || ' ' || LAST_NAME
+-- - Oracle-da NULL birləşdirmədə boş mətn kimi davranır.
+-- - CONCAT yalnız 2 dəyər alır. n dəyər üçün n-1 CONCAT lazımdır.
+-- - NVL-də rəqəm ilə mətn qarışmır: NVL(TO_CHAR(rəqəm), 'mətn').
+-- - Formatsız TO_CHAR 0.2-ni '.2' edir. Format verin: 'FM0.00'.
+-- - TO_CHAR-ın nəticəsi mətndir: göstərmək üçün formatlayın, sıralamaq üçün əsl dəyəri işlədin.
+-- - TRUNC kəsir, ROUND yuvarlaqlaşdırır. Staj və yaş üçün TRUNC.
+-- - DATE-in içində saat da var. Bu günlə müqayisə üçün TRUNC(SYSDATE).
+-- - tarix - tarix = gün sayı. Ay üçün MONTHS_BETWEEN (gec tarix birinci).
+-- - Ay əlavə etmək üçün ADD_MONTHS. Ayın son günü qaydasını unutmayın.
+-- - EXTRACT rəqəm qaytarır, TO_CHAR mətn qaytarır.
+-- - MM ay, MI dəqiqədir.
+-- - Month və Day formatlarını FM ilə yazın, yoxsa sonda boşluqlar qalır.
+-- - Mətni tarixə TO_DATE və ya DATE 'YYYY-MM-DD' ilə çevirin, tarixi mətnlə müqayisə etməyin.
+-- - İli həmişə 4 rəqəmlə (YYYY) yazın.
+-- ============================================================
